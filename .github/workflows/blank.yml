@@ -4,7 +4,7 @@ on:
   push:
     branches: [ main ]
   schedule:
-    - cron: '0 0 * * *'  # Runs daily
+    - cron: '0 0 * * *'  # روزانه اجرا شود
 
 jobs:
   build-repo:
@@ -12,18 +12,18 @@ jobs:
     container: archlinux:latest
 
     steps:
-    # Step 1: Checkout repository
-    - name: Checkout repository
+    # مرحله 1: دریافت مخزن و تنظیم Git LFS
+    - name: Checkout repository + LFS
       uses: actions/checkout@v4
+      with:
+        lfs: true  # فعال‌سازی LFS
 
-    # Step 2: Setup build environment
+    # مرحله 2: تنظیم محیط ساخت
     - name: Setup build environment
       run: |
-        # Remove systemd-sysvcompat to avoid version conflicts
         pacman -Rdd --noconfirm systemd-sysvcompat || true
-        
-        # Install base packages
-        pacman -Sy --noconfirm --needed git base-devel
+        pacman -Sy --noconfirm --needed git git-lfs base-devel
+        git lfs install --skip-repo  # فعال‌سازی LFS در محیط اجرا
         pacman -S --noconfirm --needed \
           hicolor-icon-theme libayatana-appindicator at-spi2-core \
           fontconfig pango gtk3 ayatana-ido gdk-pixbuf2 \
@@ -32,57 +32,33 @@ jobs:
           cmake ninja qt6-base qt6-wayland vulkan-headers libdrm libxcb \
           polkit
 
-    # Step 3: Create builder user and install yay
+    # مرحله 3: نصب yay
     - name: Install yay as builder user
       run: |
         useradd -m builder
         echo "builder ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
-        
         sudo -u builder git clone https://aur.archlinux.org/yay.git /tmp/yay
         cd /tmp/yay
         sudo -u builder makepkg -si --noconfirm --skippgpcheck
         rm -rf /tmp/yay
 
-    # Step 4: Build AUR packages with yay
+    # مرحله 4: ساخت بسته‌ها (شامل oblivion-desktop-bin)
     - name: Build AUR packages with yay
       run: |
         cd "$GITHUB_WORKSPACE"
-        # Build hiddify-app-bin
-        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" hiddify-app-bin
-        
-        # Build carburetor
-        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" carburetor
-        
-        # Build lact-git
-        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" lact-git
-        
-        # Build oblivion-desktop-bin (may be excluded due to size)
-        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" oblivion-desktop-bin
+        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" \
+          hiddify-app-bin carburetor lact-git oblivion-desktop-bin
 
-    # Step 5: Prepare repository structure with size filtering
-    - name: Prepare repository structure with size filter
+    # مرحله 5: آماده‌سازی ریپازیتوری با LFS
+    - name: Prepare repository with LFS
       run: |
         mkdir -p "$GITHUB_WORKSPACE/repo/x86_64"
-        # Move only packages smaller than 100MB
-        find /tmp -name "*.pkg.tar.zst" -size -100M -exec mv {} "$GITHUB_WORKSPACE/repo/x86_64/" \;
-        
-        # Report transferred packages
-        echo "Transferred packages:"
-        ls -lh "$GITHUB_WORKSPACE/repo/x86_64/" || echo "No packages transferred"
-        
-        echo "Excluded packages (over 100MB):"
-        find /tmp -name "*.pkg.tar.zst" -size +100M -exec ls -lh {} + || echo "No large packages found"
-        
-        # Create repository database
+        find /tmp -name "*.pkg.tar.zst" -exec mv {} "$GITHUB_WORKSPACE/repo/x86_64/" \;
         cd "$GITHUB_WORKSPACE/repo/x86_64"
-        if [ -n "$(ls -A .)" ]; then
-          repo-add zc-repo.db.tar.gz *.pkg.tar.zst
-          echo "Repository successfully created"
-        else
-          echo "Warning: Repository is empty!"
-        fi
+        git lfs track "*.pkg.tar.zst"  # اطمینان از LFS برای فایل‌ها
+        repo-add zc-repo.db.tar.gz *.pkg.tar.zst
 
-    # Step 6: Deploy to repository branch
+    # مرحله 6: آپلود با پشتیبانی از LFS
     - name: Deploy to repository branch
       uses: peaceiris/actions-gh-pages@v3
       with:
