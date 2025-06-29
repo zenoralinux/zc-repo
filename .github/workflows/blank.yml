@@ -12,53 +12,45 @@ jobs:
     container: archlinux:latest
 
     steps:
-    # مرحله 1: دریافت مخزن
+    # مرحله 1: دریافت مخزن با تمام تاریخچه
     - name: Checkout repository
       uses: actions/checkout@v4
       with:
         fetch-depth: 0
-        persist-credentials: true
 
-    # مرحله 2: تنظیم محیط و نصب پیش‌نیازها
+    # مرحله 2: تنظیم محیط ساخت
     - name: Setup build environment
       run: |
-        # تنظیمات اولیه pacman
         pacman -Sy --noconfirm --needed git base-devel pacman-contrib
-        
-        # نصب وابستگی‌های بسته
         pacman -S --noconfirm --needed \
           hicolor-icon-theme libayatana-appindicator at-spi2-core \
           fontconfig pango gtk3 ayatana-ido gdk-pixbuf2 \
           libayatana-indicator libdbusmenu-glib cairo harfbuzz libepoxy
 
-    # مرحله 3: دریافت بسته از AUR
-    - name: Clone AUR package
+    # مرحله 3: دریافت و ساخت بسته AUR
+    - name: Clone and build AUR package
       run: |
         git clone https://aur.archlinux.org/hiddify-app-bin.git
-
-    # مرحله 4: ساخت بسته
-    - name: Build package
-      working-directory: ./hiddify-app-bin
-      run: |
+        cd hiddify-app-bin
         useradd -m builder
         chown -R builder .
         su builder -c "makepkg -s --noconfirm --skippgpcheck"
 
-    # مرحله 5: آماده‌سازی ریپازیتوری
-    - name: Prepare repository
+    # مرحله 4: آماده‌سازی ریپازیتوری
+    - name: Prepare repository structure
       run: |
         mkdir -p repo/x86_64
         mv hiddify-app-bin/*.pkg.tar.zst repo/x86_64/
         cd repo/x86_64
         repo-add hiddify-repo.db.tar.gz *.pkg.tar.zst
 
-    # مرحله 6: آپلود به شاخه repo
-    - name: Deploy to repo branch
-      uses: JamesIves/github-pages-deploy-action@v4
+    # مرحله 5: آپلود به شاخه repo
+    - name: Deploy to repository branch
+      uses: peaceiris/actions-gh-pages@v3
       with:
-        branch: repo
-        folder: repo
-        clean: true
-        target-folder: .
-        single-commit: true
-        commit-message: "Repository update: $(date +'%Y-%m-%d %H:%M:%S')"
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./repo
+        destination_dir: .
+        publish_branch: repo
+        keep_files: false
+        force_orphan: true
