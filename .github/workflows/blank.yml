@@ -16,9 +16,13 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    # مرحله 2: تنظیم محیط ساخت و نصب وابستگی‌های اضافی برای lact-git
+    # مرحله 2: تنظیم محیط ساخت با حل مشکل systemd
     - name: Setup build environment
       run: |
+        # ابتدا systemd-sysvcompat را حذف می‌کنیم تا تداخل نسخه‌ها رخ ندهد
+        pacman -Rdd --noconfirm systemd-sysvcompat || true
+        
+        # نصب بسته‌های پایه
         pacman -Sy --noconfirm --needed git base-devel
         pacman -S --noconfirm --needed \
           hicolor-icon-theme libayatana-appindicator at-spi2-core \
@@ -26,7 +30,7 @@ jobs:
           libayatana-indicator libdbusmenu-glib cairo harfbuzz libepoxy \
           python python-gobject python-pycountry gtk4 libadwaita meson \
           cmake ninja qt6-base qt6-wayland vulkan-headers libdrm libxcb \
-          systemd polkit
+          polkit
 
     # مرحله 3: ایجاد کاربر builder و نصب yay
     - name: Install yay as builder user
