@@ -20,7 +20,7 @@ jobs:
     - name: Setup build environment
       run: |
         pacman -Rdd --noconfirm systemd-sysvcompat || true
-        pacman -Sy --noconfirm --needed git base-devel
+        pacman -Sy --noconfirm --needed git base-devel pacman-contrib
         pacman -S --noconfirm --needed \
           hicolor-icon-theme libayatana-appindicator at-spi2-core \
           fontconfig pango gtk3 ayatana-ido gdk-pixbuf2 \
@@ -51,35 +51,53 @@ jobs:
     # مرحله 5: آماده‌سازی مخزن
     - name: Prepare repository structure
       run: |
+        # ایجاد ساختار دایرکتوری
         mkdir -p "$GITHUB_WORKSPACE/repo/x86_64"
-        find /tmp -name "*.pkg.tar.zst" -exec mv {} "$GITHUB_WORKSPACE/repo/x86_64/" \;
+        
+        # کپی بسته‌ها (به جای جابجایی برای اطمینان از دسترسی)
+        find /tmp -name "*.pkg.tar.zst" -exec cp {} "$GITHUB_WORKSPACE/repo/x86_64/" \;
+        
+        # ایجاد دیتابیس مخزن
         cd "$GITHUB_WORKSPACE/repo/x86_64"
-        repo-add zc-repo.db.tar.gz *.pkg.tar.zst
+        
+        # حذف فایل‌های قدیمی
+        rm -f *.db *.files *.db.tar.gz *.files.tar.gz
+        
+        # ایجاد دیتابیس جدید بدون امضا
+        repo-add -n zc-repo.db.tar.gz *.pkg.tar.zst
+        
+        # ایجاد لینک‌های سمبولیک
+        ln -sv zc-repo.db.tar.gz zc-repo.db
+        ln -sv zc-repo.files.tar.gz zc-repo.files
+        
+        # بررسی محتویات
+        echo "محتوای مخزن:"
+        ls -la
+        echo "محتوای دیتابیس:"
+        tar -ztvf zc-repo.db.tar.gz
 
-    # مرحله 6: پیکربندی Git و آپلود
-    - name: Configure and Push to Codeberg
+    # مرحله 6: آپلود به Codeberg
+    - name: Push to Codeberg
       env:
         CODEBERG_USER: zenoralinux
         CODEBERG_TOKEN: ${{ secrets.CODEBERG_TOKEN }}
       run: |
-        # پاکسازی توکن از کاراکترهای اضافه
-        CLEAN_TOKEN=$(echo "$CODEBERG_TOKEN" | tr -d '\n\r\t ')
+        cd "$GITHUB_WORKSPACE/repo"
         
-        # تنظیمات Git
+        # پیکربندی Git
         git config --global user.name "GitHub Actions"
-        git config --global user.email "miladalizade8282@gmail.com"
+        git config --global user.email "actions@github.com"
         git config --global init.defaultBranch main
         
-        # آماده‌سازی مخزن
-        cd "$GITHUB_WORKSPACE/repo"
-        git init -b main
+        # مقداردهی اولیه مخزن
+        git init
+        git checkout -b main
         git add .
-        git commit -m "Automated update: $(date +'%Y-%m-%d %H:%M:%S')"
+        git commit -m "آپدیت خودکار: $(date +'%Y-%m-%d %H:%M:%S')"
         
         # آپلود با احراز هویت
-        git remote add origin "https://${CODEBERG_USER}:${CLEAN_TOKEN}@codeberg.org/${CODEBERG_USER}/zc-repo.git"
+        git remote add origin "https://${CODEBERG_USER}:${CODEBERG_TOKEN}@codeberg.org/${CODEBERG_USER}/zc-repo.git"
         git push -u origin main --force
         
-        # تأیید آپلود
-        echo "Repository successfully updated!"
-        echo "Access at: https://codeberg.org/zenoralinux/zc-repo"
+        echo "مخزن با موفقیت آپدیت شد!"
+        echo "آدرس مخزن: https://codeberg.org/zenoralinux/zc-repo"
