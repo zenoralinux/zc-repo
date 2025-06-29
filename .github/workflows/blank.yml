@@ -56,32 +56,30 @@ jobs:
         cd "$GITHUB_WORKSPACE/repo/x86_64"
         repo-add zc-repo.db.tar.gz *.pkg.tar.zst
 
-    # مرحله 6: تنظیمات Git
-    - name: Configure Git
+    # مرحله 6: پیکربندی Git و آپلود
+    - name: Configure and Push to Codeberg
+      env:
+        CODEBERG_USER: zenoralinux
+        CODEBERG_TOKEN: ${{ secrets.CODEBERG_TOKEN }}
       run: |
+        # پاکسازی توکن از کاراکترهای اضافه
+        CLEAN_TOKEN=$(echo "$CODEBERG_TOKEN" | tr -d '\n\r\t ')
+        
+        # تنظیمات Git
         git config --global user.name "GitHub Actions"
-        git config --global user.email "actions@github.com"
+        git config --global user.email "miladalizade8282@gmail.com"
         git config --global init.defaultBranch main
-        git config --global http.postBuffer 524288000
-
-    # مرحله 7: آپلود به Codeberg
-    - name: Push to Codeberg Repository
-      run: |
+        
+        # آماده‌سازی مخزن
         cd "$GITHUB_WORKSPACE/repo"
-        git init
-        git checkout -b main
+        git init -b main
         git add .
         git commit -m "Automated update: $(date +'%Y-%m-%d %H:%M:%S')"
         
-        # ساخت URL با فرمت صحیح
-        REPO_URL="https://${{ secrets.CODEBERG_USER }}:${{ secrets.CODEBERG_TOKEN }}@codeberg.org/zenoralinux/zc-repo.git"
-        echo "Repository URL: ${REPO_URL//${{ secrets.CODEBERG_TOKEN }}/[REDACTED]}"
-        
-        git remote add origin "$REPO_URL"
+        # آپلود با احراز هویت
+        git remote add origin "https://${CODEBERG_USER}:${CLEAN_TOKEN}@codeberg.org/${CODEBERG_USER}/zc-repo.git"
         git push -u origin main --force
-
-    # مرحله 8: تأیید آپلود
-    - name: Verify Upload
-      run: |
-        echo "Repository successfully updated on Codeberg"
+        
+        # تأیید آپلود
+        echo "Repository successfully updated!"
         echo "Access at: https://codeberg.org/zenoralinux/zc-repo"
