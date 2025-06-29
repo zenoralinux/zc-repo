@@ -1,35 +1,42 @@
-name: Build and Deploy AUR Package
+name: Arch Linux Repository Builder
 
 on:
   push:
     branches: [ main ]
   schedule:
-    - cron: '0 0 * * *'  # Daily build
+    - cron: '0 0 * * *'  # روزانه اجرا شود
 
 jobs:
-  build-and-deploy:
+  build-repo:
     runs-on: ubuntu-latest
     container: archlinux:latest
 
     steps:
+    # مرحله 1: دریافت مخزن
     - name: Checkout repository
       uses: actions/checkout@v4
       with:
         fetch-depth: 0
+        persist-credentials: true
 
-    - name: Setup environment
+    # مرحله 2: تنظیم محیط و نصب پیش‌نیازها
+    - name: Setup build environment
       run: |
-        sed -i 's/^CheckSpace/#CheckSpace/' /etc/pacman.conf
-        echo -e "[multilib]\nInclude = /etc/pacman.d/mirrorlist" >> /etc/pacman.conf
-        pacman -Sy --noconfirm --needed git base-devel pacman-contrib \
+        # تنظیمات اولیه pacman
+        pacman -Sy --noconfirm --needed git base-devel pacman-contrib
+        
+        # نصب وابستگی‌های بسته
+        pacman -S --noconfirm --needed \
           hicolor-icon-theme libayatana-appindicator at-spi2-core \
           fontconfig pango gtk3 ayatana-ido gdk-pixbuf2 \
           libayatana-indicator libdbusmenu-glib cairo harfbuzz libepoxy
 
+    # مرحله 3: دریافت بسته از AUR
     - name: Clone AUR package
       run: |
         git clone https://aur.archlinux.org/hiddify-app-bin.git
 
+    # مرحله 4: ساخت بسته
     - name: Build package
       working-directory: ./hiddify-app-bin
       run: |
@@ -37,36 +44,21 @@ jobs:
         chown -R builder .
         su builder -c "makepkg -s --noconfirm --skippgpcheck"
 
-    - name: Prepare repository files
+    # مرحله 5: آماده‌سازی ریپازیتوری
+    - name: Prepare repository
       run: |
-        mkdir -p x86_64
-        mv hiddify-app-bin/*.pkg.tar.zst x86_64/
-        cd x86_64
+        mkdir -p repo/x86_64
+        mv hiddify-app-bin/*.pkg.tar.zst repo/x86_64/
+        cd repo/x86_64
         repo-add hiddify-repo.db.tar.gz *.pkg.tar.zst
 
-    - name: Commit and push to repo branch
-      run: |
-        # Configure Git
-        git config --global user.name "GitHub Actions"
-        git config --global user.email "actions@github.com"
-        
-        # Create or checkout repo branch
-        if git show-ref --quiet refs/remotes/origin/repo; then
-          git fetch origin repo
-          git checkout repo
-        else
-          git checkout --orphan repo
-          git rm -rf .
-        fi
-        
-        # Move new files
-        rm -rf *
-        mv x86_64/* .
-        rmdir x86_64
-        
-        # Commit and push
-        git add -A
-        git commit -m "Repo update: $(date +'%Y-%m-%d %H:%M:%S')"
-        git push -f origin repo
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    # مرحله 6: آپلود به شاخه repo
+    - name: Deploy to repo branch
+      uses: JamesIves/github-pages-deploy-action@v4
+      with:
+        branch: repo
+        folder: repo
+        clean: true
+        target-folder: .
+        single-commit: true
+        commit-message: "Repository update: $(date +'%Y-%m-%d %H:%M:%S')"
