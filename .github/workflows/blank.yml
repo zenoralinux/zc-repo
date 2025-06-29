@@ -55,6 +55,9 @@ jobs:
         
         # ساخت lact-git
         sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" lact-git
+        
+        # ساخت oblivion-desktop-bin
+        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" oblivion-desktop-bin
 
     # مرحله 5: آماده‌سازی ریپازیتوری
     - name: Prepare repository structure
