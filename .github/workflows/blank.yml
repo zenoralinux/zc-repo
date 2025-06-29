@@ -1,0 +1,46 @@
+name: Build AUR Package
+
+on:
+  push:
+  schedule:
+    - cron: '0 0 * * *' # روزانه اجرا شود
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: archlinux/base
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+      
+    - name: Install dependencies
+      run: |
+        pacman -Sy --noconfirm git base-devel pacman-contrib
+        
+    - name: Clone AUR package
+      run: |
+        git clone https://aur.archlinux.org/hiddify-app-bin.git
+        
+    - name: Build package
+      working-directory: ./hiddify-app-bin
+      run: |
+        makepkg -s --noconfirm
+        
+    - name: Prepare repo directory
+      run: |
+        mkdir -p x86_64
+        
+    - name: Move package to repo
+      run: |
+        mv hiddify-app-bin/*.pkg.tar.zst x86_64/
+        
+    - name: Create repository database
+      run: |
+        repo-add x86_64/my-linux-repo.db.tar.gz x86_64/*.pkg.tar.zst
+        
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v2
+      with:
+        name: linux-repo
+        path: x86_64
