@@ -16,7 +16,7 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    # مرحله 2: تنظیم محیط ساخت
+    # مرحله 2: تنظیم محیط ساخت و نصب وابستگی‌های اضافی برای lact-git
     - name: Setup build environment
       run: |
         pacman -Sy --noconfirm --needed git base-devel
@@ -24,7 +24,9 @@ jobs:
           hicolor-icon-theme libayatana-appindicator at-spi2-core \
           fontconfig pango gtk3 ayatana-ido gdk-pixbuf2 \
           libayatana-indicator libdbusmenu-glib cairo harfbuzz libepoxy \
-          python python-gobject python-pycountry gtk4 libadwaita meson
+          python python-gobject python-pycountry gtk4 libadwaita meson \
+          cmake ninja qt6-base qt6-wayland vulkan-headers libdrm libxcb \
+          systemd polkit
 
     # مرحله 3: ایجاد کاربر builder و نصب yay
     - name: Install yay as builder user
@@ -46,6 +48,9 @@ jobs:
         
         # ساخت carburetor
         sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" carburetor
+        
+        # ساخت lact-git
+        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" lact-git
 
     # مرحله 5: آماده‌سازی ریپازیتوری
     - name: Prepare repository structure
