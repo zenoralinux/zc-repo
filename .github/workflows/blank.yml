@@ -12,11 +12,9 @@ jobs:
     container: archlinux:latest
 
     steps:
-    # مرحله 1: دریافت مخزن با تمام تاریخچه
+    # مرحله 1: دریافت مخزن
     - name: Checkout repository
       uses: actions/checkout@v4
-      with:
-        path: /build
 
     # مرحله 2: تنظیم محیط ساخت
     - name: Setup build environment
@@ -34,7 +32,6 @@ jobs:
         useradd -m builder
         echo "builder ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
         
-        # نصب yay در مسیر موقت
         sudo -u builder git clone https://aur.archlinux.org/yay.git /tmp/yay
         cd /tmp/yay
         sudo -u builder makepkg -si --noconfirm --skippgpcheck
@@ -43,7 +40,7 @@ jobs:
     # مرحله 4: ساخت بسته‌های AUR با yay
     - name: Build AUR packages with yay
       run: |
-        cd /build
+        cd "$GITHUB_WORKSPACE"
         # ساخت hiddify-app-bin
         sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" hiddify-app-bin
         
@@ -53,9 +50,9 @@ jobs:
     # مرحله 5: آماده‌سازی ریپازیتوری
     - name: Prepare repository structure
       run: |
-        mkdir -p /build/repo/x86_64
-        find /tmp -name "*.pkg.tar.zst" -exec mv {} /build/repo/x86_64/ \;
-        cd /build/repo/x86_64
+        mkdir -p "$GITHUB_WORKSPACE/repo/x86_64"
+        find /tmp -name "*.pkg.tar.zst" -exec mv {} "$GITHUB_WORKSPACE/repo/x86_64/" \;
+        cd "$GITHUB_WORKSPACE/repo/x86_64"
         repo-add zc-repo.db.tar.gz *.pkg.tar.zst
 
     # مرحله 6: آپلود به شاخه repo
@@ -63,7 +60,7 @@ jobs:
       uses: peaceiris/actions-gh-pages@v3
       with:
         github_token: ${{ secrets.UPLOAD_ZENORA }}
-        publish_dir: /build/repo
+        publish_dir: ./repo
         destination_dir: .
         publish_branch: repo
         keep_files: false
