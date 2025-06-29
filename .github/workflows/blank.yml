@@ -19,9 +19,12 @@ jobs:
     # مرحله 2: تنظیم محیط ساخت
     - name: Setup build environment
       run: |
+        # حذف بسته‌های مشکل‌ساز
         pacman -Rdd --noconfirm systemd-sysvcompat || true
-        pacman -Sy --noconfirm --needed git base-devel pacman-contrib
-        pacman -S --noconfirm --needed \
+        
+        # نصب بسته‌های ضروری
+        pacman -Sy --noconfirm --needed \
+          git base-devel pacman-contrib \
           hicolor-icon-theme libayatana-appindicator at-spi2-core \
           fontconfig pango gtk3 ayatana-ido gdk-pixbuf2 \
           libayatana-indicator libdbusmenu-glib cairo harfbuzz libepoxy \
@@ -30,7 +33,7 @@ jobs:
           polkit
 
     # مرحله 3: نصب yay
-    - name: Install yay as builder user
+    - name: Install yay
       run: |
         useradd -m builder
         echo "builder ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
@@ -40,51 +43,50 @@ jobs:
         rm -rf /tmp/yay
 
     # مرحله 4: ساخت بسته‌های AUR
-    - name: Build AUR packages with yay
+    - name: Build AUR packages
       run: |
         cd "$GITHUB_WORKSPACE"
-        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" hiddify-app-bin
-        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" carburetor
-        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" lact-git
-        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" oblivion-desktop-bin
+        for pkg in hiddify-app-bin carburetor lact-git oblivion-desktop-bin; do
+          sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" "$pkg"
+        done
 
     # مرحله 5: آماده‌سازی مخزن
-    - name: Prepare repository structure
+    - name: Prepare repository
       run: |
         # ایجاد ساختار دایرکتوری
         mkdir -p "$GITHUB_WORKSPACE/repo/x86_64"
         
-        # کپی بسته‌ها (به جای جابجایی برای اطمینان از دسترسی)
-        find /tmp -name "*.pkg.tar.zst" -exec cp {} "$GITHUB_WORKSPACE/repo/x86_64/" \;
+        # کپی بسته‌ها
+        find /tmp -name "*.pkg.tar.zst" -exec cp -v {} "$GITHUB_WORKSPACE/repo/x86_64/" \;
         
-        # ایجاد دیتابیس مخزن
+        # ایجاد دیتابیس
         cd "$GITHUB_WORKSPACE/repo/x86_64"
         
         # حذف فایل‌های قدیمی
-        rm -f *.db *.files *.db.tar.gz *.files.tar.gz
+        rm -fv *.db *.files *.db.tar.* *.files.tar.*
         
-        # ایجاد دیتابیس جدید بدون امضا
-        repo-add -n zc-repo.db.tar.gz *.pkg.tar.zst
+        # ایجاد دیتابیس جدید
+        repo-add -n -v zc-repo.db.tar.gz *.pkg.tar.zst
         
         # ایجاد لینک‌های سمبولیک
-        ln -sv zc-repo.db.tar.gz zc-repo.db
-        ln -sv zc-repo.files.tar.gz zc-repo.files
+        ln -sfv zc-repo.db.tar.gz zc-repo.db
+        ln -sfv zc-repo.files.tar.gz zc-repo.files
         
-        # بررسی محتویات
-        echo "محتوای مخزن:"
+        # بررسی نهایی
+        echo "=== محتوای مخزن ==="
         ls -la
-        echo "محتوای دیتابیس:"
-        tar -ztvf zc-repo.db.tar.gz
+        echo "=== خلاصه دیتابیس ==="
+        tar -ztvf zc-repo.db.tar.gz | head
 
     # مرحله 6: آپلود به Codeberg
-    - name: Push to Codeberg
+    - name: Deploy to Codeberg
       env:
         CODEBERG_USER: zenoralinux
         CODEBERG_TOKEN: ${{ secrets.CODEBERG_TOKEN }}
       run: |
         cd "$GITHUB_WORKSPACE/repo"
         
-        # پیکربندی Git
+        # تنظیمات Git
         git config --global user.name "GitHub Actions"
         git config --global user.email "actions@github.com"
         git config --global init.defaultBranch main
@@ -93,11 +95,11 @@ jobs:
         git init
         git checkout -b main
         git add .
-        git commit -m "آپدیت خودکار: $(date +'%Y-%m-%d %H:%M:%S')"
+        git commit -m "آپدیت خودکار: $(date +'%Y-%m-%d %H:%M')"
         
-        # آپلود با احراز هویت
-        git remote add origin "https://${CODEBERG_USER}:${CODEBERG_TOKEN}@codeberg.org/${CODEBERG_USER}/zc-repo.git"
-        git push -u origin main --force
+        # آپلود به Codeberg
+        git remote add origin "https://$CODEBERG_USER:$CODEBERG_TOKEN@codeberg.org/$CODEBERG_USER/zc-repo.git"
+        git push -f origin main
         
-        echo "مخزن با موفقیت آپدیت شد!"
+        echo "=== آپلود موفقیت‌آمیز بود ==="
         echo "آدرس مخزن: https://codeberg.org/zenoralinux/zc-repo"
