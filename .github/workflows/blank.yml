@@ -4,7 +4,7 @@ on:
   push:
     branches: [ main ]
   schedule:
-    - cron: '0 0 * * *'  # روزانه اجرا شود
+    - cron: '0 0 * * *'  # Runs daily
 
 jobs:
   build-repo:
@@ -12,17 +12,17 @@ jobs:
     container: archlinux:latest
 
     steps:
-    # مرحله 1: دریافت مخزن
+    # Step 1: Checkout repository
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    # مرحله 2: تنظیم محیط ساخت با حل مشکل systemd
+    # Step 2: Setup build environment
     - name: Setup build environment
       run: |
-        # ابتدا systemd-sysvcompat را حذف می‌کنیم تا تداخل نسخه‌ها رخ ندهد
+        # Remove systemd-sysvcompat to avoid version conflicts
         pacman -Rdd --noconfirm systemd-sysvcompat || true
         
-        # نصب بسته‌های پایه
+        # Install base packages
         pacman -Sy --noconfirm --needed git base-devel
         pacman -S --noconfirm --needed \
           hicolor-icon-theme libayatana-appindicator at-spi2-core \
@@ -32,7 +32,7 @@ jobs:
           cmake ninja qt6-base qt6-wayland vulkan-headers libdrm libxcb \
           polkit
 
-    # مرحله 3: ایجاد کاربر builder و نصب yay
+    # Step 3: Create builder user and install yay
     - name: Install yay as builder user
       run: |
         useradd -m builder
@@ -43,31 +43,46 @@ jobs:
         sudo -u builder makepkg -si --noconfirm --skippgpcheck
         rm -rf /tmp/yay
 
-    # مرحله 4: ساخت بسته‌های AUR با yay
+    # Step 4: Build AUR packages with yay
     - name: Build AUR packages with yay
       run: |
         cd "$GITHUB_WORKSPACE"
-        # ساخت hiddify-app-bin
+        # Build hiddify-app-bin
         sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" hiddify-app-bin
         
-        # ساخت carburetor
+        # Build carburetor
         sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" carburetor
         
-        # ساخت lact-git
+        # Build lact-git
         sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" lact-git
         
-        # ساخت oblivion-desktop-bin
+        # Build oblivion-desktop-bin (may be excluded due to size)
         sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" oblivion-desktop-bin
 
-    # مرحله 5: آماده‌سازی ریپازیتوری
-    - name: Prepare repository structure
+    # Step 5: Prepare repository structure with size filtering
+    - name: Prepare repository structure with size filter
       run: |
         mkdir -p "$GITHUB_WORKSPACE/repo/x86_64"
-        find /tmp -name "*.pkg.tar.zst" -exec mv {} "$GITHUB_WORKSPACE/repo/x86_64/" \;
+        # Move only packages smaller than 100MB
+        find /tmp -name "*.pkg.tar.zst" -size -100M -exec mv {} "$GITHUB_WORKSPACE/repo/x86_64/" \;
+        
+        # Report transferred packages
+        echo "Transferred packages:"
+        ls -lh "$GITHUB_WORKSPACE/repo/x86_64/" || echo "No packages transferred"
+        
+        echo "Excluded packages (over 100MB):"
+        find /tmp -name "*.pkg.tar.zst" -size +100M -exec ls -lh {} + || echo "No large packages found"
+        
+        # Create repository database
         cd "$GITHUB_WORKSPACE/repo/x86_64"
-        repo-add zc-repo.db.tar.gz *.pkg.tar.zst
+        if [ -n "$(ls -A .)" ]; then
+          repo-add zc-repo.db.tar.gz *.pkg.tar.zst
+          echo "Repository successfully created"
+        else
+          echo "Warning: Repository is empty!"
+        fi
 
-    # مرحله 6: آپلود به شاخه repo
+    # Step 6: Deploy to repository branch
     - name: Deploy to repository branch
       uses: peaceiris/actions-gh-pages@v3
       with:
