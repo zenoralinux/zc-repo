@@ -27,20 +27,30 @@ jobs:
           fontconfig pango gtk3 ayatana-ido gdk-pixbuf2 \
           libayatana-indicator libdbusmenu-glib cairo harfbuzz libepoxy
 
-    # مرحله 3: دریافت و ساخت بسته AUR
-    - name: Clone and build AUR package
+    # مرحله 3: دریافت و ساخت بسته‌های AUR
+    - name: Clone and build AUR packages
       run: |
+        # ساخت hiddify-app-bin
         git clone https://aur.archlinux.org/hiddify-app-bin.git
         cd hiddify-app-bin
         useradd -m builder
         chown -R builder .
         su builder -c "makepkg -s --noconfirm --skippgpcheck"
+        cd ..
+        
+        # ساخت carburetor
+        git clone https://aur.archlinux.org/carburetor.git
+        cd carburetor
+        chown -R builder .
+        su builder -c "makepkg -s --noconfirm --skippgpcheck"
+        cd ..
 
     # مرحله 4: آماده‌سازی ریپازیتوری
     - name: Prepare repository structure
       run: |
         mkdir -p repo/x86_64
         mv hiddify-app-bin/*.pkg.tar.zst repo/x86_64/
+        mv carburetor/*.pkg.tar.zst repo/x86_64/
         cd repo/x86_64
         repo-add zc-repo.db.tar.gz *.pkg.tar.zst
 
