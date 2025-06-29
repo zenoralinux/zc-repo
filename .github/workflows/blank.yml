@@ -18,49 +18,41 @@ jobs:
       with:
         fetch-depth: 0
 
-    # مرحله 2: تنظیم محیط ساخت و نصب وابستگی‌های عمومی
+    # مرحله 2: تنظیم محیط ساخت و نصب yay
     - name: Setup build environment
       run: |
-        pacman -Sy --noconfirm --needed git base-devel pacman-contrib
+        pacman -Sy --noconfirm --needed git base-devel
+        # نصب وابستگی‌های اولیه
         pacman -S --noconfirm --needed \
           hicolor-icon-theme libayatana-appindicator at-spi2-core \
           fontconfig pango gtk3 ayatana-ido gdk-pixbuf2 \
           libayatana-indicator libdbusmenu-glib cairo harfbuzz libepoxy \
-          python python-gobject python-pycountry gtk4 libadwaita tractor meson
+          python python-gobject python-pycountry gtk4 libadwaita meson
+        
+        # نصب yay
+        git clone https://aur.archlinux.org/yay.git
+        cd yay
+        makepkg -si --noconfirm --skippgpcheck
+        cd ..
 
-    # مرحله 3: ایجاد کاربر builder بدون نیاز به رمز عبور
-    - name: Create builder user
-      run: |
-        useradd -m builder
-        echo "builder ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
-
-    # مرحله 4: دریافت و ساخت بسته‌های AUR
-    - name: Clone and build AUR packages
+    # مرحله 3: ساخت بسته‌های AUR با yay
+    - name: Build AUR packages with yay
       run: |
         # ساخت hiddify-app-bin
-        git clone https://aur.archlinux.org/hiddify-app-bin.git
-        cd hiddify-app-bin
-        chown -R builder .
-        su builder -c "makepkg -s --noconfirm --skippgpcheck"
-        cd ..
+        yay -S --noconfirm --builddir=./ --mflags="--skippgpcheck" hiddify-app-bin
         
         # ساخت carburetor
-        git clone https://aur.archlinux.org/carburetor.git
-        cd carburetor
-        chown -R builder .
-        su builder -c "makepkg -s --noconfirm --skippgpcheck"
-        cd ..
+        yay -S --noconfirm --builddir=./ --mflags="--skippgpcheck" carburetor
 
-    # مرحله 5: آماده‌سازی ریپازیتوری
+    # مرحله 4: آماده‌سازی ریپازیتوری
     - name: Prepare repository structure
       run: |
         mkdir -p repo/x86_64
-        mv hiddify-app-bin/*.pkg.tar.zst repo/x86_64/
-        mv carburetor/*.pkg.tar.zst repo/x86_64/
+        find . -name "*.pkg.tar.zst" -exec mv {} repo/x86_64/ \;
         cd repo/x86_64
         repo-add zc-repo.db.tar.gz *.pkg.tar.zst
 
-    # مرحله 6: آپلود به شاخه repo
+    # مرحله 5: آپلود به شاخه repo
     - name: Deploy to repository branch
       uses: peaceiris/actions-gh-pages@v3
       with:
