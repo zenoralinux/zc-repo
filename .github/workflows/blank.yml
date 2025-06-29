@@ -16,7 +16,6 @@ jobs:
       uses: actions/checkout@v4
       with:
         fetch-depth: 0
-        path: source
 
     - name: Setup environment
       run: |
@@ -40,37 +39,30 @@ jobs:
 
     - name: Prepare repository files
       run: |
-        mkdir -p repo-content/x86_64
-        mv hiddify-app-bin/*.pkg.tar.zst repo-content/x86_64/
-        cd repo-content/x86_64
+        mkdir -p x86_64
+        mv hiddify-app-bin/*.pkg.tar.zst x86_64/
+        cd x86_64
         repo-add hiddify-repo.db.tar.gz *.pkg.tar.zst
 
-    - name: Initialize Git Repository
+    - name: Commit and push to repo branch
       run: |
-        mkdir -p github-repo
-        cd github-repo
-        git init
-        git remote add origin https://github.com/${{ github.repository }}.git
-
-    - name: Configure and Push to Repo Branch
-      run: |
-        cd github-repo
-        git config user.name "GitHub Actions"
-        git config user.email "actions@github.com"
+        # Configure Git
+        git config --global user.name "GitHub Actions"
+        git config --global user.email "actions@github.com"
         
-        # Check if repo branch exists
-        if git ls-remote --exit-code --heads origin repo; then
+        # Create or checkout repo branch
+        if git show-ref --quiet refs/remotes/origin/repo; then
           git fetch origin repo
           git checkout repo
         else
           git checkout --orphan repo
+          git rm -rf .
         fi
         
-        # Remove existing files
-        find . -mindepth 1 -delete
-        
-        # Copy new files
-        cp -r ../repo-content/x86_64/* .
+        # Move new files
+        rm -rf *
+        mv x86_64/* .
+        rmdir x86_64
         
         # Commit and push
         git add -A
