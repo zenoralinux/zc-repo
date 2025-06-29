@@ -4,7 +4,7 @@ on:
   push:
     branches: [ main ]
   schedule:
-    - cron: '0 0 * * *'  # اجرای روزانه
+    - cron: '0 0 * * *'  # Daily build
 
 jobs:
   build-and-deploy:
@@ -16,16 +16,13 @@ jobs:
       uses: actions/checkout@v4
       with:
         fetch-depth: 0
+        path: main-repo
 
     - name: Setup environment
       run: |
-        # تنظیمات اولیه pacman
         sed -i 's/^CheckSpace/#CheckSpace/' /etc/pacman.conf
         echo -e "[multilib]\nInclude = /etc/pacman.d/mirrorlist" >> /etc/pacman.conf
-        
-        # نصب پیش‌نیازها
-        pacman -Sy --noconfirm --needed \
-          git base-devel pacman-contrib \
+        pacman -Sy --noconfirm --needed git base-devel pacman-contrib \
           hicolor-icon-theme libayatana-appindicator at-spi2-core \
           fontconfig pango gtk3 ayatana-ido gdk-pixbuf2 \
           libayatana-indicator libdbusmenu-glib cairo harfbuzz libepoxy
@@ -41,29 +38,31 @@ jobs:
         chown -R builder .
         su builder -c "makepkg -s --noconfirm --skippgpcheck"
 
-    - name: Prepare repository
+    - name: Prepare repository files
       run: |
-        mkdir -p repo/x86_64
-        mv hiddify-app-bin/*.pkg.tar.zst repo/x86_64/
-        cd repo/x86_64
+        mkdir -p repo-build/x86_64
+        mv hiddify-app-bin/*.pkg.tar.zst repo-build/x86_64/
+        cd repo-build/x86_64
         repo-add hiddify-repo.db.tar.gz *.pkg.tar.zst
 
-    - name: Commit and push to repository
+    - name: Configure Git
+      working-directory: main-repo
       run: |
-        git config --global user.name "GitHub Actions"
-        git config --global user.email "actions@github.com"
-        
-        # ایجاد شاخه repo در صورت عدم وجود
+        git config user.name "GitHub Actions"
+        git config user.email "actions@github.com"
         git checkout --orphan repo
         git reset --hard
+
+    - name: Update repository branch
+      run: |
+        # Copy built files to the checked-out repo
+        rm -rf main-repo/*
+        mv repo-build/x86_64/* main-repo/
         
-        # جابجایی فایل‌های ریپازیتوری
-        mv repo/x86_64/* .
-        rm -rf repo
-        
-        # کامیت و push
+        # Commit and push
+        cd main-repo
         git add -A
-        git commit -m "Update repo: $(date +'%Y-%m-%d %H:%M:%S')"
+        git commit -m "Repo update: $(date +'%Y-%m-%d %H:%M:%S')"
         git push -f origin repo
 
       env:
