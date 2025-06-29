@@ -18,33 +18,39 @@ jobs:
       with:
         fetch-depth: 0
 
-    # مرحله 2: تنظیم محیط ساخت و نصب yay
+    # مرحله 2: تنظیم محیط ساخت
     - name: Setup build environment
       run: |
         pacman -Sy --noconfirm --needed git base-devel
-        # نصب وابستگی‌های اولیه
         pacman -S --noconfirm --needed \
           hicolor-icon-theme libayatana-appindicator at-spi2-core \
           fontconfig pango gtk3 ayatana-ido gdk-pixbuf2 \
           libayatana-indicator libdbusmenu-glib cairo harfbuzz libepoxy \
           python python-gobject python-pycountry gtk4 libadwaita meson
-        
-        # نصب yay
-        git clone https://aur.archlinux.org/yay.git
-        cd yay
-        makepkg -si --noconfirm --skippgpcheck
-        cd ..
 
-    # مرحله 3: ساخت بسته‌های AUR با yay
+    # مرحله 3: ایجاد کاربر builder و نصب yay
+    - name: Install yay as builder user
+      run: |
+        # ایجاد کاربر builder
+        useradd -m builder
+        echo "builder ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+        
+        # نصب yay به عنوان کاربر builder
+        sudo -u builder git clone https://aur.archlinux.org/yay.git /tmp/yay
+        cd /tmp/yay
+        sudo -u builder makepkg -si --noconfirm --skippgpcheck
+        cd /github/workspace
+
+    # مرحله 4: ساخت بسته‌های AUR با yay
     - name: Build AUR packages with yay
       run: |
         # ساخت hiddify-app-bin
-        yay -S --noconfirm --builddir=./ --mflags="--skippgpcheck" hiddify-app-bin
+        sudo -u builder yay -S --noconfirm --builddir=./ --mflags="--skippgpcheck" hiddify-app-bin
         
         # ساخت carburetor
-        yay -S --noconfirm --builddir=./ --mflags="--skippgpcheck" carburetor
+        sudo -u builder yay -S --noconfirm --builddir=./ --mflags="--skippgpcheck" carburetor
 
-    # مرحله 4: آماده‌سازی ریپازیتوری
+    # مرحله 5: آماده‌سازی ریپازیتوری
     - name: Prepare repository structure
       run: |
         mkdir -p repo/x86_64
@@ -52,7 +58,7 @@ jobs:
         cd repo/x86_64
         repo-add zc-repo.db.tar.gz *.pkg.tar.zst
 
-    # مرحله 5: آپلود به شاخه repo
+    # مرحله 6: آپلود به شاخه repo
     - name: Deploy to repository branch
       uses: peaceiris/actions-gh-pages@v3
       with:
