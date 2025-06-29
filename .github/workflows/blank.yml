@@ -42,7 +42,7 @@ jobs:
         mkdir -p repo/x86_64
         mv hiddify-app-bin/*.pkg.tar.zst repo/x86_64/
         cd repo/x86_64
-        repo-add hiddify-repo.db.tar.gz *.pkg.tar.zst
+        repo-add zc-repo.db.tar.gz *.pkg.tar.zst
 
     # مرحله 5: آپلود به شاخه repo
     - name: Deploy to repository branch
