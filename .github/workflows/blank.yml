@@ -4,7 +4,7 @@ on:
   push:
     branches: [ main ]
   schedule:
-    - cron: '0 0 * * *'  # Run daily
+    - cron: '0 0 * * *'  # روزانه اجرا شود
 
 jobs:
   build-repo:
@@ -12,21 +12,18 @@ jobs:
     container: archlinux:latest
 
     steps:
-    # Step 1: First install Git and dependencies
-    - name: Install Git and base tools
-      run: |
-        pacman -Sy --noconfirm --needed git git-lfs base-devel
-        
-    # Step 2: Now checkout repository with LFS
-    - name: Checkout repository with LFS
+    # مرحله 1: دریافت مخزن
+    - name: Checkout repository
       uses: actions/checkout@v4
-      with:
-        lfs: true
 
-    # Step 3: Setup build environment
+    # مرحله 2: تنظیم محیط ساخت با حل مشکل systemd
     - name: Setup build environment
       run: |
+        # ابتدا systemd-sysvcompat را حذف می‌کنیم تا تداخل نسخه‌ها رخ ندهد
         pacman -Rdd --noconfirm systemd-sysvcompat || true
+        
+        # نصب بسته‌های پایه
+        pacman -Sy --noconfirm --needed git base-devel
         pacman -S --noconfirm --needed \
           hicolor-icon-theme libayatana-appindicator at-spi2-core \
           fontconfig pango gtk3 ayatana-ido gdk-pixbuf2 \
@@ -35,8 +32,7 @@ jobs:
           cmake ninja qt6-base qt6-wayland vulkan-headers libdrm libxcb \
           polkit
 
-    # Rest of the workflow remains the same...
-    # Step 4: Install yay as builder user
+    # مرحله 3: ایجاد کاربر builder و نصب yay
     - name: Install yay as builder user
       run: |
         useradd -m builder
@@ -47,33 +43,31 @@ jobs:
         sudo -u builder makepkg -si --noconfirm --skippgpcheck
         rm -rf /tmp/yay
 
-    # Step 5: Build AUR packages with yay
+    # مرحله 4: ساخت بسته‌های AUR با yay
     - name: Build AUR packages with yay
       run: |
         cd "$GITHUB_WORKSPACE"
+        # ساخت hiddify-app-bin
         sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" hiddify-app-bin
+        
+        # ساخت carburetor
         sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" carburetor
+        
+        # ساخت lact-git
         sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" lact-git
+        
+        # ساخت oblivion-desktop-bin
         sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" oblivion-desktop-bin
 
-    # Step 6: Prepare repository structure with LFS
-    - name: Prepare repository structure with LFS
+    # مرحله 5: آماده‌سازی ریپازیتوری
+    - name: Prepare repository structure
       run: |
-        git config --global user.email "actions@github.com"
-        git config --global user.name "GitHub Actions"
-        
         mkdir -p "$GITHUB_WORKSPACE/repo/x86_64"
         find /tmp -name "*.pkg.tar.zst" -exec mv {} "$GITHUB_WORKSPACE/repo/x86_64/" \;
-        
-        cd "$GITHUB_WORKSPACE/repo"
-        git lfs track "x86_64/*.pkg.tar.zst"
-        git add .gitattributes
-        
-        cd x86_64
+        cd "$GITHUB_WORKSPACE/repo/x86_64"
         repo-add zc-repo.db.tar.gz *.pkg.tar.zst
-        git add .
 
-    # Step 7: Deploy to repository branch
+    # مرحله 6: آپلود به شاخه repo
     - name: Deploy to repository branch
       uses: peaceiris/actions-gh-pages@v3
       with:
@@ -83,4 +77,3 @@ jobs:
         publish_branch: repo
         keep_files: false
         force_orphan: true
-        enable_jekyll: false
