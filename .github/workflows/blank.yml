@@ -4,7 +4,7 @@ on:
   push:
     branches: [ main ]
   schedule:
-    - cron: '0 0 * * *'  # Daily build
+    - cron: '0 0 * * *'  # اجرای روزانه
 
 jobs:
   build-and-deploy:
@@ -16,7 +16,7 @@ jobs:
       uses: actions/checkout@v4
       with:
         fetch-depth: 0
-        path: main-repo
+        path: source-repo
 
     - name: Setup environment
       run: |
@@ -40,30 +40,32 @@ jobs:
 
     - name: Prepare repository files
       run: |
-        mkdir -p repo-build/x86_64
-        mv hiddify-app-bin/*.pkg.tar.zst repo-build/x86_64/
-        cd repo-build/x86_64
+        mkdir -p repo-files/x86_64
+        mv hiddify-app-bin/*.pkg.tar.zst repo-files/x86_64/
+        cd repo-files/x86_64
         repo-add hiddify-repo.db.tar.gz *.pkg.tar.zst
 
-    - name: Configure Git
-      working-directory: main-repo
+    - name: Configure Git and push to repo branch
       run: |
+        cd source-repo
         git config user.name "GitHub Actions"
         git config user.email "actions@github.com"
-        git checkout --orphan repo
-        git reset --hard
-
-    - name: Update repository branch
-      run: |
-        # Copy built files to the checked-out repo
-        rm -rf main-repo/*
-        mv repo-build/x86_64/* main-repo/
+        
+        # Create or reset repo branch
+        if git show-ref --quiet refs/heads/repo; then
+          git checkout repo
+          git rm -rf .
+        else
+          git checkout --orphan repo
+          git rm -rf .
+        fi
+        
+        # Copy new files
+        cp -r ../repo-files/x86_64/* .
         
         # Commit and push
-        cd main-repo
         git add -A
         git commit -m "Repo update: $(date +'%Y-%m-%d %H:%M:%S')"
         git push -f origin repo
-
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
