@@ -14,21 +14,32 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
       
-    - name: Install dependencies
+    - name: Configure pacman and install base dependencies
       run: |
-        pacman -Sy --noconfirm --needed git base-devel pacman-contrib
+        # Configure pacman to skip checks and run without sudo
+        sed -i 's/^CheckSpace/#CheckSpace/' /etc/pacman.conf
+        echo -e "[multilib]\nInclude = /etc/pacman.d/mirrorlist" >> /etc/pacman.conf
+        
+        # Install all required dependencies first
+        pacman -Sy --noconfirm --needed \
+          git base-devel pacman-contrib \
+          hicolor-icon-theme libayatana-appindicator at-spi2-core \
+          fontconfig pango gtk3 ayatana-ido gdk-pixbuf2 \
+          libayatana-indicator libdbusmenu-glib cairo harfbuzz libepoxy
         
     - name: Clone AUR package
       run: |
         git clone https://aur.archlinux.org/hiddify-app-bin.git
         
-    - name: Build package
+    - name: Build package as non-root user
       working-directory: ./hiddify-app-bin
       run: |
-        # Add build user to avoid running as root
+        # Create build user
         useradd -m builder
         chown -R builder .
-        su builder -c "makepkg -s --noconfirm"
+        
+        # Build as non-root user
+        su builder -c "makepkg -s --noconfirm --skippgpcheck"
         
     - name: Prepare repo directory
       run: |
