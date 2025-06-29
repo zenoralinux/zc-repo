@@ -12,17 +12,21 @@ jobs:
     container: archlinux:latest
 
     steps:
-    # Step 1: Checkout repository
+    # Step 1: First install Git and dependencies
+    - name: Install Git and base tools
+      run: |
+        pacman -Sy --noconfirm --needed git git-lfs base-devel
+        
+    # Step 2: Now checkout repository with LFS
     - name: Checkout repository with LFS
       uses: actions/checkout@v4
       with:
         lfs: true
 
-    # Step 2: Setup build environment
+    # Step 3: Setup build environment
     - name: Setup build environment
       run: |
         pacman -Rdd --noconfirm systemd-sysvcompat || true
-        pacman -Sy --noconfirm --needed git git-lfs base-devel
         pacman -S --noconfirm --needed \
           hicolor-icon-theme libayatana-appindicator at-spi2-core \
           fontconfig pango gtk3 ayatana-ido gdk-pixbuf2 \
@@ -31,7 +35,8 @@ jobs:
           cmake ninja qt6-base qt6-wayland vulkan-headers libdrm libxcb \
           polkit
 
-    # Step 3: Install yay as builder user
+    # Rest of the workflow remains the same...
+    # Step 4: Install yay as builder user
     - name: Install yay as builder user
       run: |
         useradd -m builder
@@ -42,7 +47,7 @@ jobs:
         sudo -u builder makepkg -si --noconfirm --skippgpcheck
         rm -rf /tmp/yay
 
-    # Step 4: Build AUR packages with yay
+    # Step 5: Build AUR packages with yay
     - name: Build AUR packages with yay
       run: |
         cd "$GITHUB_WORKSPACE"
@@ -51,11 +56,9 @@ jobs:
         sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" lact-git
         sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" oblivion-desktop-bin
 
-    # Step 5: Prepare repository structure with LFS
+    # Step 6: Prepare repository structure with LFS
     - name: Prepare repository structure with LFS
       run: |
-        # Install and setup Git LFS
-        git lfs install
         git config --global user.email "actions@github.com"
         git config --global user.name "GitHub Actions"
         
@@ -70,7 +73,7 @@ jobs:
         repo-add zc-repo.db.tar.gz *.pkg.tar.zst
         git add .
 
-    # Step 6: Deploy to repository branch with LFS support
+    # Step 7: Deploy to repository branch
     - name: Deploy to repository branch
       uses: peaceiris/actions-gh-pages@v3
       with:
