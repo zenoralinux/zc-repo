@@ -8,7 +8,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    container: archlinux/base
+    container: archlinux:latest
     
     steps:
     - name: Checkout repository
@@ -16,7 +16,7 @@ jobs:
       
     - name: Install dependencies
       run: |
-        pacman -Sy --noconfirm git base-devel pacman-contrib
+        pacman -Sy --noconfirm --needed git base-devel pacman-contrib
         
     - name: Clone AUR package
       run: |
@@ -25,7 +25,10 @@ jobs:
     - name: Build package
       working-directory: ./hiddify-app-bin
       run: |
-        makepkg -s --noconfirm
+        # Add build user to avoid running as root
+        useradd -m builder
+        chown -R builder .
+        su builder -c "makepkg -s --noconfirm"
         
     - name: Prepare repo directory
       run: |
@@ -37,7 +40,8 @@ jobs:
         
     - name: Create repository database
       run: |
-        repo-add x86_64/my-linux-repo.db.tar.gz x86_64/*.pkg.tar.zst
+        cd x86_64
+        repo-add my-linux-repo.db.tar.gz *.pkg.tar.zst
         
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
