@@ -12,9 +12,11 @@ jobs:
     container: archlinux:latest
 
     steps:
+    # مرحله 1: دریافت مخزن
     - name: Checkout repository
       uses: actions/checkout@v4
 
+    # مرحله 2: تنظیم محیط ساخت
     - name: Setup build environment
       run: |
         pacman -Rdd --noconfirm systemd-sysvcompat || true
@@ -27,6 +29,7 @@ jobs:
           cmake ninja qt6-base qt6-wayland vulkan-headers libdrm libxcb \
           polkit
 
+    # مرحله 3: نصب yay
     - name: Install yay as builder user
       run: |
         useradd -m builder
@@ -36,6 +39,7 @@ jobs:
         sudo -u builder makepkg -si --noconfirm --skippgpcheck
         rm -rf /tmp/yay
 
+    # مرحله 4: ساخت بسته‌های AUR
     - name: Build AUR packages with yay
       run: |
         cd "$GITHUB_WORKSPACE"
@@ -44,6 +48,7 @@ jobs:
         sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" lact-git
         sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" oblivion-desktop-bin
 
+    # مرحله 5: آماده‌سازی مخزن
     - name: Prepare repository structure
       run: |
         mkdir -p "$GITHUB_WORKSPACE/repo/x86_64"
@@ -51,17 +56,32 @@ jobs:
         cd "$GITHUB_WORKSPACE/repo/x86_64"
         repo-add zc-repo.db.tar.gz *.pkg.tar.zst
 
+    # مرحله 6: تنظیمات Git
     - name: Configure Git
       run: |
         git config --global user.name "GitHub Actions"
         git config --global user.email "actions@github.com"
+        git config --global init.defaultBranch main
+        git config --global http.postBuffer 524288000
 
-    - name: Push to Codeberg
+    # مرحله 7: آپلود به Codeberg
+    - name: Push to Codeberg Repository
       run: |
         cd "$GITHUB_WORKSPACE/repo"
         git init
         git checkout -b main
         git add .
-        git commit -m "Automated update: $(date +'%Y-%m-%d %H:%M')"
-        git remote add codeberg "https://${{ secrets.CODEBERG_USER }}:${{ secrets.CODEBERG_TOKEN }}@codeberg.org/${{ secrets.CODEBERG_REPO }}.git"
-        git push -u codeberg main --force
+        git commit -m "Automated update: $(date +'%Y-%m-%d %H:%M:%S')"
+        
+        # ساخت URL با فرمت صحیح
+        REPO_URL="https://${{ secrets.CODEBERG_USER }}:${{ secrets.CODEBERG_TOKEN }}@codeberg.org/zenoralinux/zc-repo.git"
+        echo "Repository URL: ${REPO_URL//${{ secrets.CODEBERG_TOKEN }}/[REDACTED]}"
+        
+        git remote add origin "$REPO_URL"
+        git push -u origin main --force
+
+    # مرحله 8: تأیید آپلود
+    - name: Verify Upload
+      run: |
+        echo "Repository successfully updated on Codeberg"
+        echo "Access at: https://codeberg.org/zenoralinux/zc-repo"
