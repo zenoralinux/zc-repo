@@ -1,4 +1,4 @@
-name: Arch Linux Repository Builder
+name: zenora Linux Repository Builder
 
 on:
   push:
