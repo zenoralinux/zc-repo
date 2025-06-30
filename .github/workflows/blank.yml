@@ -43,7 +43,7 @@ jobs:
     - name: Build AUR packages with yay
       run: |
         cd "$GITHUB_WORKSPACE"
-        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" Fractal
+       sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" Element
     # مرحله 5: آماده‌سازی و سینک مخزن
     - name: Prepare and Sync Repository
       env:
