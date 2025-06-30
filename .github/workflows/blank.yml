@@ -49,6 +49,7 @@ jobs:
         sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" oblivion-desktop
         sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" heroic-games-launcher-bin
         sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" Packet
+        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" Brisk
 
     # مرحله 5: آماده‌سازی مخزن
     - name: Prepare repository structure
