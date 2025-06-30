@@ -27,7 +27,7 @@ jobs:
           libayatana-indicator libdbusmenu-glib cairo harfbuzz libepoxy \
           python python-gobject python-pycountry gtk4 libadwaita meson \
           cmake ninja qt6-base qt6-wayland vulkan-headers libdrm libxcb \
-          polkit
+          polkit nodejs npm
 
     # مرحله 3: نصب yay
     - name: Install yay as builder user
@@ -46,7 +46,7 @@ jobs:
         sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" hiddify-app-bin
         sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" carburetor
         sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" lact-git
-        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" oblivion-desktop-git
+        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" oblivion-desktop
 
     # مرحله 5: آماده‌سازی مخزن
     - name: Prepare repository structure
