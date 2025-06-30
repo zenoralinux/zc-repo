@@ -50,6 +50,8 @@ jobs:
         sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" heroic-games-launcher-bin
         sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" Packet
         sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" Brisk
+        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" Fractal
+        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" Element
 
     # مرحله 5: آماده‌سازی مخزن
     - name: Prepare repository structure
