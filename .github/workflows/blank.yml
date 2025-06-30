@@ -43,51 +43,46 @@ jobs:
     - name: Build AUR packages with yay
       run: |
         cd "$GITHUB_WORKSPACE"
-        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" hiddify-app-bin
-      #  sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" carburetor
-      #  sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" lact-git
-      #  sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" oblivion-desktop
-      #  sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" heroic-games-launcher-bin
-      #  sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" Packet
-      #  sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" Brisk
-      # sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" Fractal
-      #  sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" Element
-
-    # مرحله 5: آماده‌سازی مخزن
-    - name: Prepare repository structure
-      run: |
-        mkdir -p "$GITHUB_WORKSPACE/repo/x86_64"
-        find /tmp -name "*.pkg.tar.zst" -exec mv {} "$GITHUB_WORKSPACE/repo/x86_64/" \;
-        cd "$GITHUB_WORKSPACE/repo/x86_64"
-        repo-add zc-repo.db.tar.gz *.pkg.tar.zst
-        mv zc-repo.files.tar.gz zc-repo.files
-        mv zc-repo.db.tar.gz zc-repo.db
-        
-
-    # مرحله 6: پیکربندی Git و آپلود
-    - name: Configure and Push to Codeberg
+        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" Fractal
+    # مرحله 5: آماده‌سازی و سینک مخزن
+    - name: Prepare and Sync Repository
       env:
         CODEBERG_USER: zenoralinux
         CODEBERG_TOKEN: ${{ secrets.CODEBERG_TOKEN }}
       run: |
-        # پاکسازی توکن از کاراکترهای اضافه
+        # پاکسازی توکن
         CLEAN_TOKEN=$(echo "$CODEBERG_TOKEN" | tr -d '\n\r\t ')
         
         # تنظیمات Git
         git config --global user.name "GitHub Actions"
         git config --global user.email "actions@github.com"
-        git config --global init.defaultBranch main
         
-        # آماده‌سازی مخزن
-        cd "$GITHUB_WORKSPACE/repo"
-        git init -b main
+        # کلون کردن مخزن موجود
+        cd "$GITHUB_WORKSPACE"
+        git clone "https://${CODEBERG_USER}:${CLEAN_TOKEN}@codeberg.org/${CODEBERG_USER}/zc-repo.git" existing_repo || \
+          { mkdir -p existing_repo/x86_64; cd existing_repo; git init; }
+        
+        # کپی کردن فایل‌های جدید به مخزن موجود
+        mkdir -p existing_repo/x86_64
+        find /tmp -name "*.pkg.tar.zst" -exec cp -f {} existing_repo/x86_64/ \;
+        
+        # حذف فایل‌های قدیمی دیتابیس
+        cd existing_repo/x86_64
+        rm -f zc-repo.db* zc-repo.files*
+        
+        # ایجاد دیتابیس جدید با تمام بسته‌ها (قدیمی و جدید)
+        repo-add zc-repo.db.tar.gz *.pkg.tar.zst
+        
+        # تغییر نام فایل‌های دیتابیس به فرمت مورد نظر
+        mv zc-repo.files.tar.gz zc-repo.files
+        mv zc-repo.db.tar.gz zc-repo.db
+        
+        # کامیت و push تغییرات
+        cd ..
         git add .
         git commit -m "Automated update: $(date +'%Y-%m-%d %H:%M:%S')"
-        
-        # آپلود با احراز هویت
-        git remote add origin "https://${CODEBERG_USER}:${CLEAN_TOKEN}@codeberg.org/${CODEBERG_USER}/zc-repo.git"
-        git push -u origin main --force
+        git push origin main
         
         # تأیید آپلود
-        echo "Repository successfully updated!"
+        echo "Repository successfully synced!"
         echo "Access at: https://codeberg.org/zenoralinux/zc-repo"
