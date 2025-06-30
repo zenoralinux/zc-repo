@@ -1,0 +1,93 @@
+name: Arch Linux Repository Builder
+
+on:
+  push:
+    branches: [ main ]
+  schedule:
+    - cron: '0 0 * * *'  # روزانه اجرا شود
+
+jobs:
+  build-repo:
+    runs-on: ubuntu-latest
+    container: archlinux:latest
+
+    steps:
+    # مرحله 1: دریافت مخزن
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    # مرحله 2: تنظیم محیط ساخت و اضافه کردن مخزن archlinuxcn
+    - name: Setup build environment
+      run: |
+        pacman -Rdd --noconfirm systemd-sysvcompat || true
+        pacman -Sy --noconfirm --needed git base-devel
+        pacman -S --noconfirm --needed \
+          hicolor-icon-theme libayatana-appindicator at-spi2-core \
+          fontconfig pango gtk3 ayatana-ido gdk-pixbuf2 \
+          libayatana-indicator libdbusmenu-glib cairo harfbuzz libepoxy \
+          python python-gobject python-pycountry gtk4 libadwaita meson \
+          cmake ninja qt6-base qt6-wayland vulkan-headers libdrm libxcb \
+          polkit nodejs npm
+        
+        # اضافه کردن مخزن archlinuxcn
+        echo '[archlinuxcn]' >> /etc/pacman.conf
+        echo 'Server = https://repo.archlinuxcn.org/$arch' >> /etc/pacman.conf
+        pacman -Sy --noconfirm archlinuxcn-keyring
+        pacman -S --noconfirm heroic-games-launcher-bin
+
+    # مرحله 3: نصب yay
+    - name: Install yay as builder user
+      run: |
+        useradd -m builder
+        echo "builder ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+        sudo -u builder git clone https://aur.archlinux.org/yay.git /tmp/yay
+        cd /tmp/yay
+        sudo -u builder makepkg -si --noconfirm --skippgpcheck
+        rm -rf /tmp/yay
+
+    # مرحله 4: ساخت بسته‌های AUR (به جز heroic-games-launcher-bin)
+    - name: Build AUR packages with yay
+      run: |
+        cd "$GITHUB_WORKSPACE"
+
+    # مرحله 5: آماده‌سازی مخزن
+    - name: Prepare repository structure
+      run: |
+        mkdir -p "$GITHUB_WORKSPACE/repo/x86_64"
+        # انتقال بسته‌های ساخته شده با yay
+        find /tmp -name "*.pkg.tar.zst" -exec mv {} "$GITHUB_WORKSPACE/repo/x86_64/" \;
+        # انتقال بسته heroic-games-launcher-bin از کش pacman
+        mv /var/cache/pacman/pkg/heroic-games-launcher-bin*.pkg.tar.zst "$GITHUB_WORKSPACE/repo/x86_64/"
+        
+        cd "$GITHUB_WORKSPACE/repo/x86_64"
+        repo-add zc-repo.db.tar.gz *.pkg.tar.zst
+        mv zc-repo.files.tar.gz zc-repo.files
+        mv zc-repo.db.tar.gz zc-repo.db
+
+    # مرحله 6: پیکربندی Git و آپلود
+    - name: Configure and Push to Codeberg
+      env:
+        CODEBERG_USER: zenoralinux
+        CODEBERG_TOKEN: ${{ secrets.CODEBERG_TOKEN }}
+      run: |
+        # پاکسازی توکن از کاراکترهای اضافه
+        CLEAN_TOKEN=$(echo "$CODEBERG_TOKEN" | tr -d '\n\r\t ')
+        
+        # تنظیمات Git
+        git config --global user.name "GitHub Actions"
+        git config --global user.email "actions@github.com"
+        git config --global init.defaultBranch main
+        
+        # آماده‌سازی مخزن
+        cd "$GITHUB_WORKSPACE/repo"
+        git init -b main
+        git add .
+        git commit -m "Automated update: $(date +'%Y-%m-%d %H:%M:%S')"
+        
+        # آپلود با احراز هویت
+        git remote add origin "https://${CODEBERG_USER}:${CLEAN_TOKEN}@codeberg.org/${CODEBERG_USER}/zc-repo.git"
+        git push -u origin main --force
+        
+        # تأیید آپلود
+        echo "Repository successfully updated!"
+        echo "Access at: https://codeberg.org/zenoralinux/zc-repo"
