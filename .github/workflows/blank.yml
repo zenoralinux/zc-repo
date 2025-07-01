@@ -58,7 +58,13 @@ jobs:
         sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" materialgram-bin
         sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" brave-bin
         sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" edex-ui-bin
-
+        
+        # material you
+        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" gtk4-layer-shell
+        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" dart-sass
+        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" python-materialyoucolor-git
+        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" libastal-bluetooth-git
+        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" libastal-wireplumber-git
 
 
     # مرحله 5: آماده‌سازی و سینک مخزن
