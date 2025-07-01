@@ -45,10 +45,16 @@ jobs:
         cd "$GITHUB_WORKSPACE"
         sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" hiddify-app-bin
         sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" carburetor
-        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" oblivion-desktop
+        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" oblivion-desktop-bin
         sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" heroic-games-launcher-bin
         sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" Packet
         sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" brisk-bin
+        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" microsoft-edge-stable-bin
+        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" gopeed-bin
+        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" materialgram-bin
+        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" brave-bin
+        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" google-chrome
+        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" bottles
  
     # مرحله 5: آماده‌سازی و سینک مخزن
     - name: Prepare and Sync Repository
