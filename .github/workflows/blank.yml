@@ -43,7 +43,6 @@ jobs:
     - name: Build AUR packages with yay
       run: |
         cd "$GITHUB_WORKSPACE"
-        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" Spectral
         sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" carburetor
         sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" bottles
         sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" Packet
