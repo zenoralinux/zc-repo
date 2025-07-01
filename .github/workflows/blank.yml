@@ -58,7 +58,6 @@ jobs:
         sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" materialgram-bin
         sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" brave-bin
         sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" edex-ui-bin
-        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" proton-ge-custom-bin
 
 
 
