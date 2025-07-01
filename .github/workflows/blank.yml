@@ -46,7 +46,7 @@ jobs:
         cd /tmp 
         wget https://github.com/zenoralinux/photoshop-2020-linux/releases/download/17.0.0/photoshop-2020-wine-17-1-x86_64.pkg.tar.zst
         wget https://github.com/zenoralinux/illustratorcc17-linux/releases/download/1.5.0/illustrator-cc-wine-17-1-x86_64.pkg.tar.zst
-        
+         
         cd "$GITHUB_WORKSPACE"
         sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" carburetor
         sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" bottles
