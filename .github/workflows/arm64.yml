@@ -45,7 +45,7 @@ jobs:
           mkdir -p /tmp/aarch64
           cd /home/builder
 
-          # لیست بسته‌ها
+          # لیست بسته‌ها مناسب ARM64
           packages=(
             carburetor
             ascii-draw
@@ -57,8 +57,8 @@ jobs:
             sudo -u builder yay -S --noconfirm --mflags="--skippgpcheck" --builddir=/tmp/aarch64 "$pkg"
           done
 
-    # مرحله 3: سینک بسته‌ها به Codeberg
-    - name: Sync to Codeberg (aarch64)
+    # مرحله 3: کلون فقط پوشه aarch64 از مخزن Codeberg
+    - name: Clone only aarch64 folder (sparse checkout)
       env:
         CODEBERG_USER: zenoralinux
         CODEBERG_TOKEN: ${{ secrets.CODEBERG_TOKEN }}
@@ -66,27 +66,30 @@ jobs:
         # پاکسازی توکن
         CLEAN_TOKEN=$(echo "$CODEBERG_TOKEN" | tr -d '\n\r\t ')
 
-        # پیکربندی Git
-        git config --global user.name "GitHub Actions"
-        git config --global user.email "actions@github.com"
+        git init existing_repo
+        cd existing_repo
 
-        # کلون یا ایجاد مخزن
-        git clone "https://${CODEBERG_USER}:${CLEAN_TOKEN}@codeberg.org/${CODEBERG_USER}/zc-repo.git" existing_repo || \
-          { mkdir -p existing_repo/zcrepo/aarch64; cd existing_repo; git init; }
+        git remote add origin "https://${CODEBERG_USER}:${CLEAN_TOKEN}@codeberg.org/${CODEBERG_USER}/zc-repo.git"
+        git config core.sparseCheckout true
+        echo "zcrepo/aarch64/" >> .git/info/sparse-checkout
+        git pull --depth=1 origin main
 
-        # کپی بسته‌ها
+    # مرحله 4: کپی بسته‌ها و ساخت دیتابیس
+    - name: Sync and update repo database
+      run: |
         mkdir -p existing_repo/zcrepo/aarch64
         find /tmp/aarch64 -name "*.pkg.tar.zst" -exec cp -f {} existing_repo/zcrepo/aarch64/ \;
 
-        # ساخت دیتابیس
         cd existing_repo/zcrepo/aarch64
         rm -f zc-repo.db* zc-repo.files*
         repo-add zc-repo.db.tar.gz *.pkg.tar.zst
-        mv zc-repo.files.tar.gz zc-repo.files
         mv zc-repo.db.tar.gz zc-repo.db
+        mv zc-repo.files.tar.gz zc-repo.files
 
-        # push تغییرات
-        cd ../../
+    # مرحله 5: Push به Codeberg
+    - name: Commit and push changes
+      run: |
+        cd existing_repo
         git add .
-        git commit -m "ARM64 repo update: $(date +'%Y-%m-%d %H:%M:%S')"
+        git commit -m "ARM64 repo update: $(date +'%Y-%m-%d %H:%M:%S')" || echo "No changes to commit"
         git push origin main
