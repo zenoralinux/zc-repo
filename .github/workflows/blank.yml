@@ -78,29 +78,29 @@ jobs:
         # کلون کردن مخزن موجود
         cd "$GITHUB_WORKSPACE"
         git clone "https://${CODEBERG_USER}:${CLEAN_TOKEN}@codeberg.org/${CODEBERG_USER}/zc-repo.git" existing_repo || \
-          { mkdir -p existing_repo/x86_64; cd existing_repo; git init; }
-        
-        # کپی کردن فایل‌های جدید به مخزن موجود
-        mkdir -p existing_repo/x86_64
-        find /tmp -name "*.pkg.tar.zst" -exec cp -f {} existing_repo/x86_64/ \;
-        
+          { mkdir -p existing_repo/zcrepo/x86_64; cd existing_repo; git init; }
+
+        # کپی کردن فایل‌های جدید به مسیر جدید
+        mkdir -p existing_repo/zcrepo/x86_64
+        find /tmp -name "*.pkg.tar.zst" -exec cp -f {} existing_repo/zcrepo/x86_64/ \;
+
         # حذف فایل‌های قدیمی دیتابیس
-        cd existing_repo/x86_64
+        cd existing_repo/zcrepo/x86_64
         rm -f zc-repo.db* zc-repo.files*
-        
-        # ایجاد دیتابیس جدید با تمام بسته‌ها (قدیمی و جدید)
+
+        # ایجاد دیتابیس جدید
         repo-add zc-repo.db.tar.gz *.pkg.tar.zst
-        
-        # تغییر نام فایل‌های دیتابیس به فرمت مورد نظر
+
+        # تغییر نام فایل‌های دیتابیس به فرمت مورد نیاز
         mv zc-repo.files.tar.gz zc-repo.files
         mv zc-repo.db.tar.gz zc-repo.db
-        
+
         # کامیت و push تغییرات
-        cd ..
+        cd ../../
         git add .
         git commit -m "Automated update: $(date +'%Y-%m-%d %H:%M:%S')"
         git push origin main
-        
+
         # تأیید آپلود
         echo "Repository successfully synced!"
-        echo "Access at: https://codeberg.org/zenoralinux/zc-repo"
+        echo "Access at: https://codeberg.org/zenoralinux/zc-repo/tree/main/zcrepo/x86_64"
