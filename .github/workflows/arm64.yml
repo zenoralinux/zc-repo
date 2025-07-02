@@ -17,11 +17,11 @@ jobs:
       with:
         platforms: all
 
-    # مرحله 1: دریافت سورس اصلی مخزن
+    # مرحله 1: دریافت سورس مخزن اصلی GitHub
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    # مرحله 2: ساخت بسته‌های AUR در کانتینر ARM64 واقعی
+    # مرحله 2: ساخت بسته‌های AUR در کانتینر ARM64 با QEMU
     - name: Build ARM64 packages in container
       uses: addnab/docker-run-action@v3
       with:
@@ -35,10 +35,10 @@ jobs:
           useradd -m builder
           echo "builder ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
 
-          # اعطای مالکیت workspace به builder
+          # اعطای مالکیت workspace به builder (حل خطای permission)
           chown -R builder:builder /github/workspace
 
-          # نصب yay به‌صورت امن توسط کاربر builder
+          # نصب yay
           sudo -u builder git clone https://aur.archlinux.org/yay.git /tmp/yay
           cd /tmp/yay
           sudo -u builder makepkg -si --noconfirm --skippgpcheck
@@ -56,10 +56,12 @@ jobs:
           )
 
           for pkg in "${packages[@]}"; do
-            sudo -u builder yay -S --noconfirm --mflags="--skippgpcheck" --builddir=/tmp/aarch64 "$pkg" || echo "⚠️ Failed to build $pkg"
+            echo "➡️ Building $pkg..."
+            sudo -u builder yay -S --noconfirm --mflags="--skippgpcheck" --builddir=/tmp/aarch64 "$pkg" \
+              || echo "⚠️ Failed to build $pkg"
           done
 
-    # مرحله 3: کلون فقط پوشه zcrepo/aarch64 از Codeberg با sparse checkout
+    # مرحله 3: کلون فقط پوشه zcrepo/aarch64 از مخزن Codeberg (sparse checkout)
     - name: Clone only aarch64 folder (sparse checkout)
       env:
         CODEBERG_USER: zenoralinux
@@ -76,7 +78,7 @@ jobs:
         echo "zcrepo/aarch64/" >> .git/info/sparse-checkout
         git pull --depth=1 origin main
 
-    # مرحله 4: کپی فایل‌های ساخته‌شده و ایجاد دیتابیس
+    # مرحله 4: کپی بسته‌ها و ساخت دیتابیس مخزن
     - name: Sync and update aarch64 repository database
       run: |
         mkdir -p existing_repo/zcrepo/aarch64
@@ -88,7 +90,7 @@ jobs:
         mv zc-repo.db.tar.gz zc-repo.db
         mv zc-repo.files.tar.gz zc-repo.files
 
-    # مرحله 5: push تغییرات به Codeberg
+    # مرحله 5: push به Codeberg
     - name: Commit and push changes to Codeberg
       run: |
         cd existing_repo
