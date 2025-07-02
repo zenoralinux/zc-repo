@@ -1,95 +1,106 @@
-name: zenora ARM64 AUR Repository Builder
-
+name: zenora Linux Repository Builder
+ 
 on:
   push:
     branches: [ main ]
   schedule:
-    - cron: '0 3 * * *'  # اجرای روزانه ساعت 03:00 UTC
+    - cron: '0 0 * * *'  # روزانه اجرا شود
 
 jobs:
-  build-arm64:
+  build-repo:
     runs-on: ubuntu-latest
+    container: archlinux:latest
 
     steps:
-    # مرحله 0: فعال‌سازی QEMU برای معماری ARM64
-    - name: Enable QEMU for aarch64
-      uses: docker/setup-qemu-action@v3
-      with:
-        platforms: all
-
-    # مرحله 1: دریافت کد پروژه
+    # مرحله 1: دریافت مخزن
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    # مرحله 2: اجرای کانتینر Arch ARM با QEMU
-    - name: Run ARM64 build in container
-      uses: addnab/docker-run-action@v3
-      with:
-        image: archlinux:base-devel
-        options: --platform linux/arm64
-        shell: bash
-        run: |
-          pacman -Sy --noconfirm git base-devel sudo wget
+    # مرحله 2: تنظیم محیط ساخت
+    - name: Setup build environment
+      run: |
+        pacman -Rdd --noconfirm systemd-sysvcompat || true
+        pacman -Sy --noconfirm --needed git base-devel
+        pacman -S --noconfirm --needed \
+          hicolor-icon-theme libayatana-appindicator at-spi2-core \
+          fontconfig pango gtk3 ayatana-ido gdk-pixbuf2 \
+          libayatana-indicator libdbusmenu-glib cairo harfbuzz libepoxy \
+          python python-gobject python-pycountry gtk4 libadwaita meson \
+          cmake ninja qt6-base qt6-wayland vulkan-headers libdrm libxcb \
+          polkit nodejs npm wget
 
-          # ساخت کاربر builder
-          useradd -m builder
-          echo "builder ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+    # مرحله 3: نصب yay
+    - name: Install yay as builder user
+      run: |
+        useradd -m builder
+        echo "builder ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+        sudo -u builder git clone https://aur.archlinux.org/yay.git /tmp/yay
+        cd /tmp/yay
+        sudo -u builder makepkg -si --noconfirm --skippgpcheck
+        rm -rf /tmp/yay
 
-          # نصب yay
-          sudo -u builder git clone https://aur.archlinux.org/yay.git /tmp/yay
-          cd /tmp/yay
-          sudo -u builder makepkg -si --noconfirm --skippgpcheck
-          rm -rf /tmp/yay
+    # مرحله 4: ساخت بسته‌های AUR
+    - name: Build AUR packages with yay
+      run: |
 
-          # مسیر خروجی
-          mkdir -p /tmp/aarch64
-          cd /home/builder
+        cd "$GITHUB_WORKSPACE"
+        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" carburetor
+        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" bottles
+        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" Packet
+        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" google-chrome
+        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" ascii-draw
+        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" protonup-qt-bin 
+        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" hiddify-app-bin
+        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" oblivion-desktop-bin
+        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" heroic-games-launcher-bin
+        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" brisk-bin
+        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" microsoft-edge-stable-bin
+        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" gopeed-bin
+        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" materialgram-bin
+        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" brave-bin
+        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" edex-ui-bin
+        
 
-          # لیست بسته‌ها مناسب ARM64
-          packages=(
-            carburetor
-            ascii-draw
-            materialgram-bin
-            gopeed-bin
-          )
 
-          for pkg in "${packages[@]}"; do
-            sudo -u builder yay -S --noconfirm --mflags="--skippgpcheck" --builddir=/tmp/aarch64 "$pkg"
-          done
-
-    # مرحله 3: کلون فقط پوشه aarch64 از مخزن Codeberg
-    - name: Clone only aarch64 folder (sparse checkout)
+    # مرحله 5: آماده‌سازی و سینک مخزن
+    - name: Prepare and Sync Repository
       env:
         CODEBERG_USER: zenoralinux
         CODEBERG_TOKEN: ${{ secrets.CODEBERG_TOKEN }}
       run: |
         # پاکسازی توکن
         CLEAN_TOKEN=$(echo "$CODEBERG_TOKEN" | tr -d '\n\r\t ')
+        
+        # تنظیمات Git
+        git config --global user.name "GitHub Actions"
+        git config --global user.email "actions@github.com"
+        
+        # کلون کردن مخزن موجود
+        cd "$GITHUB_WORKSPACE"
+        git clone "https://${CODEBERG_USER}:${CLEAN_TOKEN}@codeberg.org/${CODEBERG_USER}/zc-repo.git" existing_repo || \
+          { mkdir -p existing_repo/zcrepo/x86_64; cd existing_repo; git init; }
 
-        git init existing_repo
-        cd existing_repo
+        # کپی کردن فایل‌های جدید به مسیر جدید
+        mkdir -p existing_repo/zcrepo/x86_64
+        find /tmp -name "*.pkg.tar.zst" -exec cp -f {} existing_repo/zcrepo/x86_64/ \;
 
-        git remote add origin "https://${CODEBERG_USER}:${CLEAN_TOKEN}@codeberg.org/${CODEBERG_USER}/zc-repo.git"
-        git config core.sparseCheckout true
-        echo "zcrepo/aarch64/" >> .git/info/sparse-checkout
-        git pull --depth=1 origin main
-
-    # مرحله 4: کپی بسته‌ها و ساخت دیتابیس
-    - name: Sync and update repo database
-      run: |
-        mkdir -p existing_repo/zcrepo/aarch64
-        find /tmp/aarch64 -name "*.pkg.tar.zst" -exec cp -f {} existing_repo/zcrepo/aarch64/ \;
-
-        cd existing_repo/zcrepo/aarch64
+        # حذف فایل‌های قدیمی دیتابیس
+        cd existing_repo/zcrepo/x86_64
         rm -f zc-repo.db* zc-repo.files*
-        repo-add zc-repo.db.tar.gz *.pkg.tar.zst
-        mv zc-repo.db.tar.gz zc-repo.db
-        mv zc-repo.files.tar.gz zc-repo.files
 
-    # مرحله 5: Push به Codeberg
-    - name: Commit and push changes
-      run: |
-        cd existing_repo
+        # ایجاد دیتابیس جدید
+        repo-add zc-repo.db.tar.gz *.pkg.tar.zst
+
+        # تغییر نام فایل‌های دیتابیس به فرمت مورد نیاز
+        mv zc-repo.files.tar.gz zc-repo.files
+        mv zc-repo.db.tar.gz zc-repo.db
+
+        # کامیت و push تغییرات
+        cd ../../
         git add .
-        git commit -m "ARM64 repo update: $(date +'%Y-%m-%d %H:%M:%S')" || echo "No changes to commit"
+        git commit -m "Automated update: $(date +'%Y-%m-%d %H:%M:%S')"
         git push origin main
+
+        # تأیید آپلود
+        echo "Repository successfully synced!"
+        echo "Access at: https://codeberg.org/zenoralinux/zc-repo/tree/main/zcrepo/x86_64"
