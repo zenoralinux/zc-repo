@@ -4,7 +4,7 @@ on:
   push:
     branches: [ main ]
   schedule:
-    - cron: '0 3 * * *'
+    - cron: '0 3 * * *'  # اجرای روزانه در ساعت 03:00 UTC
 
 jobs:
   build-arm64:
@@ -22,7 +22,7 @@ jobs:
     - name: Build ARM64 packages in container
       uses: addnab/docker-run-action@v3
       with:
-        image: multiarch/archlinux:arm64-latest
+        image: ghcr.io/fwcd/archlinux:latest
         options: --platform linux/arm64
         shell: bash
         run: |
@@ -63,11 +63,10 @@ jobs:
         echo "zcrepo/aarch64/" >> .git/info/sparse-checkout
         git pull --depth=1 origin main
 
-    - name: Sync and update aarch64 repository database
+    - name: Sync and update aarch64 repo database
       run: |
         mkdir -p existing_repo/zcrepo/aarch64
         find /tmp/aarch64 -name "*.pkg.tar.zst" -exec cp -f {} existing_repo/zcrepo/aarch64/ \;
-
         cd existing_repo/zcrepo/aarch64
         rm -f zc-repo.db* zc-repo.files*
         repo-add zc-repo.db.tar.gz *.pkg.tar.zst
