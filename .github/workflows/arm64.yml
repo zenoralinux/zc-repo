@@ -4,24 +4,24 @@ on:
   push:
     branches: [ main ]
   schedule:
-    - cron: '0 3 * * *'  # اجرای روزانه ساعت 03:00 به وقت UTC
+    - cron: '0 3 * * *'  # اجرای روزانه ساعت 03:00 UTC
 
 jobs:
   build-arm64:
     runs-on: ubuntu-latest
 
     steps:
-    # مرحله 0: فعال‌سازی شبیه‌سازی QEMU برای ARM64
+    # مرحله 0: فعال‌سازی QEMU برای معماری ARM64
     - name: Enable QEMU for aarch64
       uses: docker/setup-qemu-action@v3
       with:
         platforms: all
 
-    # مرحله 1: دریافت مخزن
+    # مرحله 1: دریافت کد پروژه
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    # مرحله 2: اجرای کانتینر Arch Linux ARM با QEMU
+    # مرحله 2: اجرای کانتینر Arch ARM با QEMU
     - name: Run ARM64 build in container
       uses: addnab/docker-run-action@v3
       with:
@@ -29,7 +29,6 @@ jobs:
         options: --platform linux/arm64
         shell: bash
         run: |
-          # نصب ابزارهای مورد نیاز
           pacman -Sy --noconfirm git base-devel sudo wget
 
           # ساخت کاربر builder
@@ -42,33 +41,23 @@ jobs:
           sudo -u builder makepkg -si --noconfirm --skippgpcheck
           rm -rf /tmp/yay
 
-          # ساخت بسته‌ها در پوشه /tmp/aarch64
+          # مسیر خروجی
           mkdir -p /tmp/aarch64
           cd /home/builder
 
+          # لیست بسته‌ها
           packages=(
             carburetor
-            bottles
-            Packet
-            google-chrome
             ascii-draw
-            protonup-qt-bin
-            hiddify-app-bin
-            oblivion-desktop-bin
-            heroic-games-launcher-bin
-            brisk-bin
-            microsoft-edge-stable-bin
-            gopeed-bin
             materialgram-bin
-            brave-bin
-            edex-ui-bin
+            gopeed-bin
           )
 
           for pkg in "${packages[@]}"; do
             sudo -u builder yay -S --noconfirm --mflags="--skippgpcheck" --builddir=/tmp/aarch64 "$pkg"
           done
 
-    # مرحله 3: sync مخزن AARCH64
+    # مرحله 3: سینک بسته‌ها به Codeberg
     - name: Sync to Codeberg (aarch64)
       env:
         CODEBERG_USER: zenoralinux
@@ -77,15 +66,15 @@ jobs:
         # پاکسازی توکن
         CLEAN_TOKEN=$(echo "$CODEBERG_TOKEN" | tr -d '\n\r\t ')
 
-        # تنظیمات Git
+        # پیکربندی Git
         git config --global user.name "GitHub Actions"
         git config --global user.email "actions@github.com"
 
-        # کلون کردن مخزن
+        # کلون یا ایجاد مخزن
         git clone "https://${CODEBERG_USER}:${CLEAN_TOKEN}@codeberg.org/${CODEBERG_USER}/zc-repo.git" existing_repo || \
           { mkdir -p existing_repo/zcrepo/aarch64; cd existing_repo; git init; }
 
-        # کپی بسته‌ها به مسیر aarch64
+        # کپی بسته‌ها
         mkdir -p existing_repo/zcrepo/aarch64
         find /tmp/aarch64 -name "*.pkg.tar.zst" -exec cp -f {} existing_repo/zcrepo/aarch64/ \;
 
