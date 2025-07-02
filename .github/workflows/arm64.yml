@@ -11,21 +11,21 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    # مرحله 0: فعال‌سازی QEMU برای معماری ARM64
+    # مرحله 0: فعال‌سازی QEMU برای اجرای کانتینر ARM64
     - name: Enable QEMU for aarch64
       uses: docker/setup-qemu-action@v3
       with:
         platforms: all
 
-    # مرحله 1: دریافت کد پروژه
+    # مرحله 1: دریافت سورس مخزن پروژه اصلی
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    # مرحله 2: اجرای کانتینر Arch ARM با QEMU
-    - name: Run ARM64 build in container
+    # مرحله 2: ساخت بسته‌ها در کانتینر ARM64 واقعی
+    - name: Build ARM64 packages in container
       uses: addnab/docker-run-action@v3
       with:
-        image: archlinux:base-devel
+        image: ghcr.io/pguyot/archlinuxarm:base
         options: --platform linux/arm64
         shell: bash
         run: |
@@ -45,7 +45,7 @@ jobs:
           mkdir -p /tmp/aarch64
           cd /home/builder
 
-          # لیست بسته‌ها مناسب ARM64
+          # لیست بسته‌هایی که قابل ساخت برای ARM64 هستند
           packages=(
             carburetor
             ascii-draw
@@ -57,13 +57,13 @@ jobs:
             sudo -u builder yay -S --noconfirm --mflags="--skippgpcheck" --builddir=/tmp/aarch64 "$pkg"
           done
 
-    # مرحله 3: کلون فقط پوشه aarch64 از مخزن Codeberg
+    # مرحله 3: کلون فقط پوشه zcrepo/aarch64 از مخزن Codeberg (Sparse Checkout)
     - name: Clone only aarch64 folder (sparse checkout)
       env:
         CODEBERG_USER: zenoralinux
         CODEBERG_TOKEN: ${{ secrets.CODEBERG_TOKEN }}
       run: |
-        # پاکسازی توکن
+        # پاکسازی توکن برای جلوگیری از خطا
         CLEAN_TOKEN=$(echo "$CODEBERG_TOKEN" | tr -d '\n\r\t ')
 
         git init existing_repo
@@ -75,7 +75,7 @@ jobs:
         git pull --depth=1 origin main
 
     # مرحله 4: کپی بسته‌ها و ساخت دیتابیس
-    - name: Sync and update repo database
+    - name: Sync and update aarch64 repository database
       run: |
         mkdir -p existing_repo/zcrepo/aarch64
         find /tmp/aarch64 -name "*.pkg.tar.zst" -exec cp -f {} existing_repo/zcrepo/aarch64/ \;
@@ -86,8 +86,8 @@ jobs:
         mv zc-repo.db.tar.gz zc-repo.db
         mv zc-repo.files.tar.gz zc-repo.files
 
-    # مرحله 5: Push به Codeberg
-    - name: Commit and push changes
+    # مرحله 5: Push به مخزن Codeberg
+    - name: Commit and push changes to Codeberg
       run: |
         cd existing_repo
         git add .
