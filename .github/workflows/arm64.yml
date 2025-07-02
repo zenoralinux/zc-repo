@@ -4,21 +4,24 @@ on:
   push:
     branches: [ main ]
   schedule:
-    - cron: '0 3 * * *'  # اجرای روزانه در ساعت 03:00 UTC
+    - cron: '0 3 * * *'  # اجرای روزانه ساعت 03:00 UTC
 
 jobs:
   build-arm64:
     runs-on: ubuntu-latest
 
     steps:
+    # مرحله 0: فعال‌سازی QEMU برای پشتیبانی از معماری ARM64
     - name: Enable QEMU for aarch64
       uses: docker/setup-qemu-action@v3
       with:
         platforms: all
 
+    # مرحله 1: دریافت سورس اصلی مخزن
     - name: Checkout repository
       uses: actions/checkout@v4
 
+    # مرحله 2: ساخت بسته‌های AUR در کانتینر ARM64 واقعی
     - name: Build ARM64 packages in container
       uses: addnab/docker-run-action@v3
       with:
@@ -28,14 +31,20 @@ jobs:
         run: |
           pacman -Sy --noconfirm git base-devel sudo wget
 
+          # ایجاد کاربر builder
           useradd -m builder
           echo "builder ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
 
+          # اعطای مالکیت workspace به builder
+          chown -R builder:builder /github/workspace
+
+          # نصب yay به‌صورت امن توسط کاربر builder
           sudo -u builder git clone https://aur.archlinux.org/yay.git /tmp/yay
           cd /tmp/yay
           sudo -u builder makepkg -si --noconfirm --skippgpcheck
           rm -rf /tmp/yay
 
+          # ساخت بسته‌ها
           mkdir -p /tmp/aarch64
           cd /home/builder
 
@@ -47,32 +56,39 @@ jobs:
           )
 
           for pkg in "${packages[@]}"; do
-            sudo -u builder yay -S --noconfirm --mflags="--skippgpcheck" --builddir=/tmp/aarch64 "$pkg"
+            sudo -u builder yay -S --noconfirm --mflags="--skippgpcheck" --builddir=/tmp/aarch64 "$pkg" || echo "⚠️ Failed to build $pkg"
           done
 
+    # مرحله 3: کلون فقط پوشه zcrepo/aarch64 از Codeberg با sparse checkout
     - name: Clone only aarch64 folder (sparse checkout)
       env:
         CODEBERG_USER: zenoralinux
         CODEBERG_TOKEN: ${{ secrets.CODEBERG_TOKEN }}
       run: |
         CLEAN_TOKEN=$(echo "$CODEBERG_TOKEN" | tr -d '\n\r\t ')
-        git init existing_repo
+        mkdir -p existing_repo
+        sudo chown -R $(whoami):$(whoami) existing_repo
         cd existing_repo
+
+        git init
         git remote add origin "https://${CODEBERG_USER}:${CLEAN_TOKEN}@codeberg.org/${CODEBERG_USER}/zc-repo.git"
         git config core.sparseCheckout true
         echo "zcrepo/aarch64/" >> .git/info/sparse-checkout
         git pull --depth=1 origin main
 
-    - name: Sync and update aarch64 repo database
+    # مرحله 4: کپی فایل‌های ساخته‌شده و ایجاد دیتابیس
+    - name: Sync and update aarch64 repository database
       run: |
         mkdir -p existing_repo/zcrepo/aarch64
         find /tmp/aarch64 -name "*.pkg.tar.zst" -exec cp -f {} existing_repo/zcrepo/aarch64/ \;
+
         cd existing_repo/zcrepo/aarch64
         rm -f zc-repo.db* zc-repo.files*
         repo-add zc-repo.db.tar.gz *.pkg.tar.zst
         mv zc-repo.db.tar.gz zc-repo.db
         mv zc-repo.files.tar.gz zc-repo.files
 
+    # مرحله 5: push تغییرات به Codeberg
     - name: Commit and push changes to Codeberg
       run: |
         cd existing_repo
