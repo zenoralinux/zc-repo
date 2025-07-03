@@ -31,8 +31,9 @@ jobs:
           run: |
            # مرحله 1: تنظیم محیط ساخت
            pacman -Rdd --noconfirm systemd-sysvcompat || true
-           pacman -SyU --noconfirm --needed git base-devel pacman-contrib gnupg binutils
-     
+           pacman -Syu --noconfirm --needed git base-devel pacman-contrib gnupg binutils
+           pacman -S --noconfirm --needed git base-devel pacman-contrib gnupg binutils
+
            # مرحله 3: نصب yay
            useradd -m builder
            echo "builder ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
@@ -78,10 +79,6 @@ jobs:
          cd existing_repo/zcrepo/aarch64
          rm -f zc-repo.db* zc-repo.files*
          
-         which repo-add
-         repo-add --version
-         pacman -Ql pacman | grep repo-add
-
          # ایجاد دیتابیس جدید
          repo-add zc-repo.db.tar.gz *.pkg.tar.zst
 
