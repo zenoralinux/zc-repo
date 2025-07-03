@@ -77,6 +77,10 @@ jobs:
          # حذف فایل‌های قدیمی دیتابیس
          cd existing_repo/zcrepo/aarch64
          rm -f zc-repo.db* zc-repo.files*
+         
+         which repo-add
+         repo-add --version
+         pacman -Ql pacman | grep repo-add
 
          # ایجاد دیتابیس جدید
          repo-add zc-repo.db.tar.gz *.pkg.tar.zst
