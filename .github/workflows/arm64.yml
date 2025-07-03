@@ -70,8 +70,12 @@ jobs:
         
          # کلون کردن مخزن موجود
          cd "$GITHUB_WORKSPACE"
-         git clone "https://${CODEBERG_USER}:${CLEAN_TOKEN}@codeberg.org/${CODEBERG_USER}/zc-repo.git" existing_repo || \
-           { mkdir -p existing_repo/zcrepo/aarch64; cd existing_repo; git init; }
+         git clone --filter=blob:none --no-checkout "https://${CODEBERG_USER}:${CLEAN_TOKEN}@codeberg.org/${CODEBERG_USER}/zc-repo.git" existing_repo
+         cd existing_repo
+
+         # فعال‌سازی sparse-checkout
+         git sparse-checkout init --cone
+         git sparse-checkout set zcrepo/aarch64
 
          # کپی کردن فایل‌های جدید به مسیر جدید
          mkdir -p existing_repo/zcrepo/aarch64
