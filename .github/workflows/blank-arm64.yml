@@ -1,78 +1,110 @@
-name: zenora Linux Repository Builder
- 
+name: zenora ARM64 AUR Repository Builder
+
 on:
   push:
     branches: [ main ]
   schedule:
-    - cron: '0 0 * * *'  # روزانه اجرا شود
+    - cron: '0 3 * * *'  # اجرای روزانه ساعت 03:00 UTC
 
 jobs:
-  build-repo:
+  build-arm64:
     runs-on: ubuntu-latest
-    container: archlinux:latest
 
     steps:
-    # مرحله 1: دریافت مخزن
+    # مرحله 1: دریافت سورس مخزن
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    # مرحله 2: تنظیم محیط ساخت
-    - name: Setup build environment
-      run: |
-          # Install required packages
-          pacman -Syu --noconfirm --needed --quiet git base-devel pacman-contrib
+    # مرحله 2: آماده‌سازی محیط و ساخت بسته‌ها
+    - name: Build compatible ARM64 packages
+      uses: addnab/docker-run-action@v3
+      with:
+        image: archlinux:latest
+        shell: bash
+        run: |
+          set -e
 
-          # Create builder user
-          groupadd -g 1000 builder
-          useradd -m -u 1000 -g builder builder
-          echo "builder ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/builder
-          chmod 0440 /etc/sudoers.d/builder
+          echo "🔧 Updating base system..."
+          pacman -Sy --noconfirm --needed
+          pacman -S --noconfirm --needed git base-devel pacman-contrib gnupg binutils curl fakeroot
 
-          # Clone repository
-          git config --global http.postBuffer 524288000
-          git clone "https://zenoralinux:$CODEBERG_TOKEN@codeberg.org/zenoralinux/zc-repo.git" existing_repo
+          echo "👤 Creating builder user..."
+          useradd -m builder
+          echo "builder ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+
+          echo "🚀 Cloning existing repository..."
+          git clone https://codeberg.org/zenoralinux/zc-repo.git existing_repo
           mkdir -p /output
 
-          # Process packages
+          echo "📦 Processing x86_64 packages..."
           cd existing_repo/zcrepo/x86_64
-          for pkg in $(find . -maxdepth 1 -name "*.pkg.tar.zst" -printf '%f\n' | sed -E 's/(-x86_64|-any).pkg.tar.zst//' | sort -u); do
-            echo "Processing $pkg..."
+          
+          # لیست بسته‌های x86_64 موجود
+          packages=$(ls *.pkg.tar.zst | sed 's/-x86_64.pkg.tar.zst//' | sed 's/-any.pkg.tar.zst//' | sort -u)
+
+          for pkg in $packages; do
+            echo "➡️ Processing $pkg..."
             
-            if git clone "https://aur.archlinux.org/$pkg.git" "/tmp/$pkg" 2>/dev/null; then
-              cd "/tmp/$pkg"
+            # دانلود PKGBUILD از AUR
+            if sudo -u builder git clone https://aur.archlinux.org/${pkg}.git /tmp/${pkg}; then
+              cd /tmp/${pkg}
               
-              if grep -q 'arch=.*\(any\|aarch64' PKGBUILD; then
-                echo "Building $pkg for ARM64..."
+              # بررسی معماری بسته در PKGBUILD
+              arch_specific=$(grep -E 'arch=.*\(|arch=' PKGBUILD | grep -v 'any')
+              
+              if [[ $arch_specific == *"aarch64"* ]] || grep -q 'arch=("any")' PKGBUILD; then
+                echo "✅ Compatible package (any/aarch64), building..."
                 sudo -u builder makepkg --noconfirm --skippgpcheck --nocheck -s
                 
-                find . \( -name "*-any.pkg.tar.zst" -o -name "*-aarch64.pkg.tar.zst" \) \
-                  -exec cp -v {} /output/ \;
+                # کپی فقط بسته‌های any و aarch64
+                find . -name "*-any.pkg.tar.zst" -exec cp -v {} /output/ \;
+                find . -name "*-aarch64.pkg.tar.zst" -exec cp -v {} /output/ \;
               else
-                echo "Skipping incompatible package: $pkg"
+                echo "⏩ Skipping x86_64-only package: $pkg"
               fi
+              
               cd -
             else
-              echo "Package not found in AUR: $pkg"
+              echo "⚠️ Package $pkg not found in AUR, skipping..."
             fi
           done
 
-    - name: Sync to repository
+    # مرحله 3: سینک با مخزن Codeberg
+    - name: Sync built packages to Codeberg repo
+      env:
+        CODEBERG_USER: zenoralinux
+        CODEBERG_TOKEN: ${{ secrets.CODEBERG_TOKEN }}
       run: |
-        # Copy built packages
-        mkdir -p zc-repo/zcrepo/aarch64
-        find ./output -name "*.pkg.tar.zst" -exec cp -v {} zc-repo/zcrepo/aarch64/ \; || echo "No packages found"
+        set -e
 
-        # Update repo database
-        cd zc-repo/zcrepo/aarch64
+        echo "🔑 Cleaning token..."
+        CLEAN_TOKEN=$(echo "$CODEBERG_TOKEN" | tr -d '\n\r\t ')
+
+        echo "🔁 Cloning Codeberg repo..."
+        git clone "https://${CODEBERG_USER}:${CLEAN_TOKEN}@codeberg.org/${CODEBERG_USER}/zc-repo.git" existing_repo
+        mkdir -p existing_repo/zcrepo/aarch64
+
+        echo "📦 Copying compatible packages to Codeberg repo..."
+        cp -v /home/runner/work/zenora-repo/zenora-repo/output/*.pkg.tar.zst existing_repo/zcrepo/aarch64/
+
+        cd existing_repo/zcrepo/aarch64
+
+        echo "🧹 Cleaning old database files..."
         rm -f zc-repo.db* zc-repo.files*
-        repo-add zc-repo.db.tar.gz *.pkg.tar.zst || echo "No packages to add to database"
-        [ -f zc-repo.db.tar.gz ] && mv zc-repo.db.tar.gz zc-repo.db
-        [ -f zc-repo.files.tar.gz ] && mv zc-repo.files.tar.gz zc-repo.files
 
-        # Commit changes
-        cd ../..
+        echo "🧱 Rebuilding repo database..."
+        repo-add zc-repo.db.tar.gz *.pkg.tar.zst
+
+        mv -f zc-repo.db.tar.gz zc-repo.db
+        mv -f zc-repo.files.tar.gz zc-repo.files
+
+        echo "🔧 Git config & commit..."
         git config user.name "GitHub Actions"
         git config user.email "actions@github.com"
-        git add zcrepo/aarch64/
-        git commit -m "Update ARM64 packages $(date +'%Y-%m-%d')" || echo "No changes to commit"
-        git push "https://zenoralinux:${{ secrets.CODEBERG_TOKEN }}@codeberg.org/zenoralinux/zc-repo.git" main
+        cd ../../
+        git add .
+        git commit -m "🆕 Automated ARM64 update (any/aarch64): $(date +'%Y-%m-%d %H:%M:%S')" || echo "ℹ️ Nothing to commit"
+        git push origin main
+
+        echo "✅ Repository synced successfully!"
+        echo "🌐 View: https://codeberg.org/${CODEBERG_USER}/zc-repo/tree/main/zcrepo/aarch64"
