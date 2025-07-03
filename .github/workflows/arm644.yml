@@ -65,7 +65,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: arm64-packages
-          path: /tmp/artifacts/*.pkg.tar.zst
+          path: /tmp/artifacts/
+          retention-days: 1
 
   prepare-repo:
     needs: build-arm64
@@ -91,20 +92,19 @@ jobs:
             # نصب ابزارهای لازم
             pacman -Syu --noconfirm --needed pacman-contrib git
             
+            # ایجاد ساختار دایرکتوری
+            mkdir -p /github/workspace/repo/aarch64
+            
             # کپی بسته‌ها
-            mkdir -p repo/aarch64
-            cp -f /github/workspace/packages/*.pkg.tar.zst repo/aarch64/
+            cp -f /github/workspace/packages/*.pkg.tar.zst /github/workspace/repo/aarch64/
             
             # ایجاد دیتابیس مخزن
-            cd repo/aarch64
+            cd /github/workspace/repo/aarch64
             repo-add zc-repo.db.tar.gz *.pkg.tar.zst
             
             # تغییر نام فایل‌های دیتابیس
             mv zc-repo.files.tar.gz zc-repo.files
             mv zc-repo.db.tar.gz zc-repo.db
-
-            # کپی نتایج به workspace
-            cp -r ../repo /github/workspace/
 
       # مرحله 5: سینک مخزن
       - name: Sync Repository
