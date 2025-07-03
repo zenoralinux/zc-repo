@@ -37,10 +37,11 @@ jobs:
            # مرحله 3: نصب yay
            useradd -m builder
            echo "builder ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
-           # sudo -u builder git clone https://aur.archlinux.org/yay.git /tmp/yay
-           # cd /tmp/yay
-           # sudo -u builder makepkg -si --noconfirm --skippgpcheck
-           # rm -rf /tmp/yay
+           sudo -u builder git clone https://aur.archlinux.org/yay.git /tmp/yay
+           cd /tmp/yay
+           sudo -u builder makepkg -si --noconfirm --skippgpcheck
+           rm -rf /tmp/yay
+           sudo -u builder yay -S --noconfirm repo-add_and_sign
 
             # Build packages
 
