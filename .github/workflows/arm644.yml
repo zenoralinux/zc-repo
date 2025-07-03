@@ -29,20 +29,26 @@ jobs:
           options: --platform linux/arm64 -v ${{ github.workspace }}:/workspace
           shell: bash
           run: |
-           # مرحله 1: تنظیم محیط ساخت
-           pacman -Rdd --noconfirm systemd-sysvcompat || true
-           pacman -Syu --noconfirm --needed 
-           pacman -S --noconfirm --needed git base-devel pacman-contrib gnupg binutils curl
+            # مرحله 1: تنظیم محیط ساخت
+            pacman -Rdd --noconfirm systemd-sysvcompat || true
+            pacman -Syu --noconfirm --needed 
+            pacman -S --noconfirm --needed git base-devel pacman-contrib gnupg binutils curl
 
-           # مرحله 3: نصب yay
-           useradd -m builder
-           echo "builder ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
-           sudo -u builder git clone https://aur.archlinux.org/yay.git /tmp/yay
-           cd /tmp/yay
-           sudo -u builder makepkg -si --noconfirm --skippgpcheck
-           rm -rf /tmp/yay
+            # مرحله 2: نصب yay
+            useradd -m builder
+            echo "builder ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+            sudo -u builder git clone https://aur.archlinux.org/yay.git /tmp/yay
+            cd /tmp/yay
+            sudo -u builder makepkg -si --noconfirm --skippgpcheck
+            rm -rf /tmp/yay
 
-            # Build packages
+            # ایجاد دایرکتوری artifacts
+            mkdir -p /workspace/artifacts || {
+              echo "::error::Failed to create artifacts directory"
+              exit 1
+            }
+
+            # لیست بسته‌ها برای ساخت
             packages=(
               carburetor
               ascii-draw
@@ -50,17 +56,29 @@ jobs:
               gopeed-bin
             )
 
-            # Create artifacts directory in workspace
-            mkdir -p /workspace/artifacts
-
+            # ساخت بسته‌ها
             for pkg in "${packages[@]}"; do
               echo "➡️ Building $pkg..."
-              sudo -u builder yay -S --noconfirm --mflags="--skippgpcheck" --builddir=/tmp "$pkg" && \
-                find /tmp -name "*.pkg.tar.zst" -exec cp {} /workspace/artifacts/ \; || \
-                echo "⚠️ Failed to build $pkg"
+              if ! sudo -u builder yay -S --noconfirm --mflags="--skippgpcheck" --builddir=/tmp "$pkg"; then
+                echo "::error::Failed to build $pkg"
+                continue
+              fi
+              
+              # کپی بسته‌های ساخته شده
+              if ! find /tmp -name "*.pkg.tar.zst" -exec cp -v {} /workspace/artifacts/ \; ; then
+                echo "::warning::No packages found for $pkg"
+              fi
             done
 
-     # مرحله 3: ذخیره سازی بسته‌های ساخته شده
+            # بررسی وجود بسته‌های ساخته شده
+            if [ -z "$(ls -A /workspace/artifacts/*.pkg.tar.zst 2>/dev/null)" ]; then
+              echo "::error::No packages were built!"
+              exit 1
+            else
+              echo "✅ Successfully built $(ls /workspace/artifacts/*.pkg.tar.zst | wc -l) packages"
+            fi
+
+      # مرحله 3: ذخیره سازی بسته‌های ساخته شده
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -76,6 +94,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
         
       - name: Download artifacts
         uses: actions/download-artifact@v4
@@ -88,6 +108,7 @@ jobs:
         uses: addnab/docker-run-action@v3
         with:
           image: archlinux:latest
+          options: -v ${{ github.workspace }}:/github/workspace
           shell: bash
           run: |
             # نصب ابزارهای لازم
@@ -97,15 +118,15 @@ jobs:
             mkdir -p /github/workspace/repo/aarch64
             
             # کپی بسته‌ها
-            cp -f /github/workspace/packages/*.pkg.tar.zst /github/workspace/repo/aarch64/
+            cp -fv /github/workspace/packages/*.pkg.tar.zst /github/workspace/repo/aarch64/
             
             # ایجاد دیتابیس مخزن
             cd /github/workspace/repo/aarch64
             repo-add zc-repo.db.tar.gz *.pkg.tar.zst
             
             # تغییر نام فایل‌های دیتابیس
-            mv zc-repo.files.tar.gz zc-repo.files
-            mv zc-repo.db.tar.gz zc-repo.db
+            mv -v zc-repo.files.tar.gz zc-repo.files
+            mv -v zc-repo.db.tar.gz zc-repo.db
 
       # مرحله 5: سینک مخزن
       - name: Sync Repository
@@ -119,11 +140,15 @@ jobs:
           
           # اضافه کردن تغییرات
           git add repo/
-          git commit -m "Automated update: $(date +'%Y-%m-%d %H:%M:%S')"
           
-          # Push تغییرات
-          git remote set-url origin "https://${CODEBERG_USER}:${CODEBERG_TOKEN}@codeberg.org/${CODEBERG_USER}/zc-repo.git"
-          git push origin main
-          
-          echo "Repository successfully synced!"
-          echo "Access at: https://codeberg.org/zenoralinux/zc-repo/tree/main/repo/aarch64"
+          # بررسی تغییرات
+          if git diff-index --quiet HEAD --; then
+            echo "No changes to commit"
+          else
+            git commit -m "Automated update: $(date +'%Y-%m-%d %H:%M:%S')"
+            # Push تغییرات
+            git remote set-url origin "https://${CODEBERG_USER}:${CODEBERG_TOKEN}@codeberg.org/${CODEBERG_USER}/zc-repo.git"
+            git push origin main
+            echo "✅ Repository successfully synced!"
+            echo "🔗 Access at: https://codeberg.org/zenoralinux/zc-repo/tree/main/repo/aarch64"
+          fi
