@@ -12,23 +12,23 @@ jobs:
 
     steps:
     # مرحله 0: فعال‌سازی QEMU برای پشتیبانی از معماری ARM64
-    - name: Enable QEMU for aarch64
-      uses: docker/setup-qemu-action@v3
-      with:
-        platforms: all
+      - name: Enable QEMU for aarch64
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: all
 
     # مرحله 1: دریافت سورس مخزن اصلی GitHub
-    - name: Checkout repository
-      uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
     # مرحله 2: ساخت بسته‌های AUR در کانتینر ARM64 با QEMU
-    - name: Build ARM64 packages in container
-      uses: addnab/docker-run-action@v3
-      with:
-        image: ghcr.io/fwcd/archlinux:latest
-        options: --platform linux/arm64
-        shell: bash
-        run: |
+      - name: Build ARM64 packages in container
+        uses: addnab/docker-run-action@v3
+        with:
+          image: ghcr.io/fwcd/archlinux:latest
+          options: --platform linux/arm64
+          shell: bash
+          run: |
            # مرحله 1: تنظیم محیط ساخت
            pacman -Rdd --noconfirm systemd-sysvcompat || true
            pacman -Sy --noconfirm --needed git base-devel
