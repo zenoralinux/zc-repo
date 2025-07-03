@@ -4,7 +4,7 @@ on:
   push:
     branches: [ main ]
   schedule:
-    - cron: '0 3 * * *'  # اجرای روزانه ساعت 03:00 UTC
+    - cron: '0 3 * * *'  # Daily at 03:00 UTC
 
 jobs:
   build-arm64:
@@ -19,29 +19,25 @@ jobs:
       env:
         CODEBERG_TOKEN: ${{ secrets.CODEBERG_TOKEN }}
       with:
-        entrypoint: /bin/bash
+        entrypoint: /usr/bin/bash
         args: |
-          set -euo pipefail
-
-          # نصب بسته‌های ضروری
+          # Install required packages
           pacman -Syu --noconfirm --needed --quiet git base-devel pacman-contrib
 
-          # ایجاد کاربر builder
+          # Create builder user
           groupadd -g 1000 builder
           useradd -m -u 1000 -g builder builder
           echo "builder ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/builder
           chmod 0440 /etc/sudoers.d/builder
 
-          # کلون مخزن
+          # Clone repository
           git config --global http.postBuffer 524288000
           git clone "https://zenoralinux:$CODEBERG_TOKEN@codeberg.org/zenoralinux/zc-repo.git" existing_repo
           mkdir -p /output
 
-          # پردازش بسته‌ها
+          # Process packages
           cd existing_repo/zcrepo/x86_64
-          mapfile -t packages < <(find . -maxdepth 1 -name "*.pkg.tar.zst" -printf '%f\n' | sed -E 's/(-x86_64|-any).pkg.tar.zst//' | sort -u)
-
-          for pkg in "${packages[@]}"; do
+          for pkg in $(find . -maxdepth 1 -name "*.pkg.tar.zst" -printf '%f\n' | sed -E 's/(-x86_64|-any).pkg.tar.zst//' | sort -u); do
             echo "Processing $pkg..."
             
             if git clone "https://aur.archlinux.org/$pkg.git" "/tmp/$pkg" 2>/dev/null; then
@@ -64,20 +60,18 @@ jobs:
 
     - name: Sync to repository
       run: |
-        set -euo pipefail
-
-        # کپی بسته‌های ساخته شده
+        # Copy built packages
         mkdir -p zc-repo/zcrepo/aarch64
-        find ./output -name "*.pkg.tar.zst" -exec cp -v {} zc-repo/zcrepo/aarch64/ \;
+        find ./output -name "*.pkg.tar.zst" -exec cp -v {} zc-repo/zcrepo/aarch64/ \; || echo "No packages found"
 
-        # آپدیت دیتابیس مخزن
+        # Update repo database
         cd zc-repo/zcrepo/aarch64
         rm -f zc-repo.db* zc-repo.files*
-        repo-add zc-repo.db.tar.gz *.pkg.tar.zst
-        mv zc-repo.db.tar.gz zc-repo.db
-        mv zc-repo.files.tar.gz zc-repo.files
+        repo-add zc-repo.db.tar.gz *.pkg.tar.zst || echo "No packages to add to database"
+        [ -f zc-repo.db.tar.gz ] && mv zc-repo.db.tar.gz zc-repo.db
+        [ -f zc-repo.files.tar.gz ] && mv zc-repo.files.tar.gz zc-repo.files
 
-        # کامیت تغییرات
+        # Commit changes
         cd ../..
         git config user.name "GitHub Actions"
         git config user.email "actions@github.com"
