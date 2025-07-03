@@ -11,91 +11,93 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    # مرحله 0: فعال‌سازی QEMU برای پشتیبانی از معماری ARM64
-      - name: Enable QEMU for aarch64
-        uses: docker/setup-qemu-action@v3
-        with:
-          platforms: all
+    # مرحله 0: فعال‌سازی QEMU برای پشتیبانی از ARM64
+    - name: Enable QEMU for aarch64
+      uses: docker/setup-qemu-action@v3
+      with:
+        platforms: all
 
-    # مرحله 1: دریافت سورس مخزن اصلی GitHub
-      - name: Checkout repository
-        uses: actions/checkout@v4
+    # مرحله 1: دریافت سورس مخزن
+    - name: Checkout repository
+      uses: actions/checkout@v4
 
-    # مرحله 2: ساخت بسته‌های AUR در کانتینر ARM64 با QEMU
-      - name: Build ARM64 packages in container
-        uses: addnab/docker-run-action@v3
-        with:
-          image: ghcr.io/fwcd/archlinux:latest
-          options: --platform linux/arm64
-          shell: bash
-          run: |
-           # مرحله 1: تنظیم محیط ساخت
-           pacman -Rdd --noconfirm systemd-sysvcompat || true
-           pacman -Syu --noconfirm --needed 
-           pacman -S --noconfirm --needed git base-devel pacman-contrib gnupg binutils curl
-
-           # مرحله 3: نصب yay
-           useradd -m builder
-           echo "builder ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
-           sudo -u builder git clone https://aur.archlinux.org/yay.git /tmp/yay
-           cd /tmp/yay
-           sudo -u builder makepkg -si --noconfirm --skippgpcheck
-           rm -rf /tmp/yay
-           curl ~/ https://raw.githubusercontent.com/falconindy/pacman/refs/heads/master/scripts/repo-add.sh.in 
-           sudo rm -fr /bin/repo-add
-           sudo mv ~/repo-add.sh.in /bin/repo-add
-           sudo chmod +x /bin/repo-add
-
-            # Build packages
-
-            packages=(
-              carburetor
-              ascii-draw
-              materialgram-bin
-              gopeed-bin
-            )
-
-            for pkg in "${packages[@]}"; do
-              echo "➡️ Building $pkg..."
-              sudo -u builder yay -S --noconfirm --mflags="--skippgpcheck" --builddir=/tmp "$pkg" \
-                || echo "⚠️ Failed to build $pkg"
-            done
-
-     # مرحله 5: آماده‌سازی و سینک مخزن
-      - name: Prepare and Sync Repository
-        env:
-         CODEBERG_USER: zenoralinux
-         CODEBERG_TOKEN: ${{ secrets.CODEBERG_TOKEN }}
+    # مرحله 2: ساخت بسته‌ها در کانتینر ARM64 با pacman-contrib
+    - name: Build ARM64 packages in container
+      uses: addnab/docker-run-action@v3
+      with:
+        image: ghcr.io/fwcd/archlinux:latest
+        options: --platform linux/arm64
+        shell: bash
         run: |
-         # پاکسازی توکن
-         CLEAN_TOKEN=$(echo "$CODEBERG_TOKEN" | tr -d '\n\r\t ')
-        
-         # تنظیمات Git
-         git config --global user.name "GitHub Actions"
-         git config --global user.email "actions@github.com"
-        
+          set -e
 
-         # کپی کردن فایل‌های جدید به مسیر جدید
-         mkdir -p existing_repo/zcrepo/aarch64
-         sudo find /tmp -name "*.pkg.tar.zst" -exec cp -f {} existing_repo/zcrepo/aarch64/ \; 
+          echo "🔧 Updating base system..."
+          pacman -Sy --noconfirm --needed
+          pacman -S --noconfirm --needed git base-devel pacman-contrib gnupg binutils curl fakeroot
 
-         # حذف فایل‌های قدیمی دیتابیس
-         cd existing_repo/zcrepo/aarch64
-         rm -f zc-repo.db* zc-repo.files*
-         
-         # ایجاد دیتابیس جدید
-         repo-add zc-repo.db.tar.gz *.pkg.tar.zst
+          echo "👤 Creating builder user..."
+          useradd -m builder
+          echo "builder ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
 
-         # تغییر نام فایل‌های دیتابیس به فرمت مورد نیاز
-         mv zc-repo.files.tar.gz zc-repo.files
-         mv zc-repo.db.tar.gz zc-repo.db
+          echo "🚀 Installing yay AUR helper..."
+          sudo -u builder git clone https://aur.archlinux.org/yay.git /tmp/yay
+          cd /tmp/yay
+          sudo -u builder makepkg -si --noconfirm --skippgpcheck
 
-         # کامیت و push تغییرات
-         cd ../../
-         git add .
-         git commit -m "Automated update: $(date +'%Y-%m-%d %H:%M:%S')"
-         git push origin main
+          echo "📦 Packages to build:"
+          packages=(
+           # carburetor
+           # ascii-draw
+           # materialgram-bin
+           # gopeed-bin
+          )
 
-         # تأیید آپلود
-         echo "Repository successfully synced!"
-         echo "Access at: https://codeberg.org/zenoralinux/zc-repo/tree/main/zcrepo/aarch64"
+          mkdir -p /output
+
+          for pkg in "${packages[@]}"; do
+            echo "➡️ Building $pkg..."
+            sudo -u builder yay -S --noconfirm --mflags="--skippgpcheck --nocheck" --builddir=/tmp "$pkg" || echo "⚠️ Failed to build $pkg"
+          done
+
+          echo "📁 Copying packages to /output..."
+          find /tmp/yay -name "*.pkg.tar.zst" -exec cp -v {} /output/ \;
+
+    # مرحله 3: سینک با مخزن Codeberg
+    - name: Sync built packages to Codeberg repo
+      env:
+        CODEBERG_USER: zenoralinux
+        CODEBERG_TOKEN: ${{ secrets.CODEBERG_TOKEN }}
+      run: |
+        set -e
+
+        echo "🔑 Cleaning token..."
+        CLEAN_TOKEN=$(echo "$CODEBERG_TOKEN" | tr -d '\n\r\t ')
+
+        echo "🔁 Cloning Codeberg repo..."
+        git clone "https://${CODEBERG_USER}:${CLEAN_TOKEN}@codeberg.org/${CODEBERG_USER}/zc-repo.git" existing_repo
+        mkdir -p existing_repo/zcrepo/aarch64
+
+        echo "📦 Copying packages to Codeberg repo..."
+        cp -v /home/runner/work/zenora-repo/zenora-repo/output/*.pkg.tar.zst existing_repo/zcrepo/aarch64/
+
+        cd existing_repo/zcrepo/aarch64
+
+        echo "🧹 Cleaning old database files..."
+        rm -f zc-repo.db* zc-repo.files*
+
+        echo "🧱 Rebuilding repo database..."
+        repo-add zc-repo.db.tar.gz *.pkg.tar.zst
+
+        mv -f zc-repo.db.tar.gz zc-repo.db
+        mv -f zc-repo.files.tar.gz zc-repo.files
+
+        echo "🔧 Git config & commit..."
+        git config user.name "GitHub Actions"
+        git config user.email "actions@github.com"
+        cd ../../
+        git add .
+        git commit -m "🆕 Automated update: $(date +'%Y-%m-%d %H:%M:%S')" || echo "ℹ️ Nothing to commit"
+        git push origin main
+
+        echo "✅ Repository synced successfully!"
+        echo "🌐 View: https://codeberg.org/${CODEBERG_USER}/zc-repo/tree/main/zcrepo/aarch64"
