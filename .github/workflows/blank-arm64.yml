@@ -4,99 +4,83 @@ on:
   push:
     branches: [ main ]
   schedule:
-    - cron: '0 3 * * *'  # Daily at 03:00 UTC
+    - cron: '0 3 * * *'  # اجرای روزانه ساعت 03:00 UTC
 
 jobs:
   build-arm64:
     runs-on: ubuntu-latest
 
     steps:
-    # Stage 1: Checkout repository
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    # Stage 2: Build compatible packages
-    - name: Build ARM64 compatible packages
+    - name: Build compatible packages
       uses: docker://archlinux:latest
       env:
         CODEBERG_TOKEN: ${{ secrets.CODEBERG_TOKEN }}
       with:
         entrypoint: /bin/bash
-        args: -c |
+        args: |
           set -euo pipefail
 
-          # Quiet system updates
-          echo "🔧 Setting up system..."
+          # نصب بسته‌های ضروری
           pacman -Syu --noconfirm --needed --quiet git base-devel pacman-contrib
 
-          # Create build user without systemd
-          echo "👤 Creating builder user..."
+          # ایجاد کاربر builder
           groupadd -g 1000 builder
           useradd -m -u 1000 -g builder builder
           echo "builder ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/builder
+          chmod 0440 /etc/sudoers.d/builder
 
-          # Clone repository with token authentication
-          echo "🚀 Cloning repository..."
+          # کلون مخزن
           git config --global http.postBuffer 524288000
-          git clone "https://zenoralinux:${CODEBERG_TOKEN}@codeberg.org/zenoralinux/zc-repo.git" existing_repo
+          git clone "https://zenoralinux:$CODEBERG_TOKEN@codeberg.org/zenoralinux/zc-repo.git" existing_repo
           mkdir -p /output
 
-          # Process packages
-          echo "📦 Processing packages..."
+          # پردازش بسته‌ها
           cd existing_repo/zcrepo/x86_64
-          mapfile -t packages < <(find . -name "*.pkg.tar.zst" -printf '%f\n' | sed -E 's/(-x86_64|-any).pkg.tar.zst//' | sort -u)
+          mapfile -t packages < <(find . -maxdepth 1 -name "*.pkg.tar.zst" -printf '%f\n' | sed -E 's/(-x86_64|-any).pkg.tar.zst//' | sort -u)
 
           for pkg in "${packages[@]}"; do
-            echo "➡️ Processing $pkg..."
+            echo "Processing $pkg..."
             
-            if git clone "https://aur.archlinux.org/${pkg}.git" "/tmp/${pkg}" 2>/dev/null; then
-              cd "/tmp/${pkg}"
+            if git clone "https://aur.archlinux.org/$pkg.git" "/tmp/$pkg" 2>/dev/null; then
+              cd "/tmp/$pkg"
               
-              # Check architecture compatibility
               if grep -q 'arch=.*\(any\|aarch64' PKGBUILD; then
-                echo "✅ Compatible architecture found, building..."
+                echo "Building $pkg for ARM64..."
                 sudo -u builder makepkg --noconfirm --skippgpcheck --nocheck -s
                 
-                # Copy only any/aarch64 packages
                 find . \( -name "*-any.pkg.tar.zst" -o -name "*-aarch64.pkg.tar.zst" \) \
                   -exec cp -v {} /output/ \;
               else
-                echo "⏩ Skipping incompatible architecture: $pkg"
+                echo "Skipping incompatible package: $pkg"
               fi
               cd -
             else
-              echo "⚠️ Package not found in AUR: $pkg"
+              echo "Package not found in AUR: $pkg"
             fi
           done
 
-    # Stage 3: Sync to repository
-    - name: Sync packages to Codeberg
-      env:
-        CODEBERG_TOKEN: ${{ secrets.CODEBERG_TOKEN }}
+    - name: Sync to repository
       run: |
         set -euo pipefail
 
-        echo "🔁 Syncing with repository..."
-        git clone "https://${CODEBERG_USER}:${CLEAN_TOKEN}@codeberg.org/${CODEBERG_USER}/zc-repo.git" repo
-        mkdir -p repo/zcrepo/aarch64
+        # کپی بسته‌های ساخته شده
+        mkdir -p zc-repo/zcrepo/aarch64
+        find ./output -name "*.pkg.tar.zst" -exec cp -v {} zc-repo/zcrepo/aarch64/ \;
 
-        # Copy new packages
-        find /home/runner/work/zenora-repo/zenora-repo/output -name "*.pkg.tar.zst" \
-          -exec cp -v {} repo/zcrepo/aarch64/ \;
-
-        # Update repo database
-        cd repo/zcrepo/aarch64
+        # آپدیت دیتابیس مخزن
+        cd zc-repo/zcrepo/aarch64
         rm -f zc-repo.db* zc-repo.files*
         repo-add zc-repo.db.tar.gz *.pkg.tar.zst
         mv zc-repo.db.tar.gz zc-repo.db
         mv zc-repo.files.tar.gz zc-repo.files
 
-        # Commit changes
+        # کامیت تغییرات
         cd ../..
         git config user.name "GitHub Actions"
         git config user.email "actions@github.com"
         git add zcrepo/aarch64/
-        git commit -m "🔄 ARM64 update $(date +'%Y-%m-%d')" || echo "ℹ️ No changes to commit"
-        git push origin main
-
-        echo "✅ Successfully updated ARM64 repository!"
+        git commit -m "Update ARM64 packages $(date +'%Y-%m-%d')" || echo "No changes to commit"
+        git push "https://zenoralinux:${{ secrets.CODEBERG_TOKEN }}@codeberg.org/zenoralinux/zc-repo.git" main
