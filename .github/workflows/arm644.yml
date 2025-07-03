@@ -50,10 +50,10 @@ jobs:
 
             # لیست بسته‌ها برای ساخت
             packages=(
-              carburetor
-              ascii-draw
-              materialgram-bin
-              gopeed-bin
+              # carburetor
+              # ascii-draw
+              #  materialgram-bin
+               gopeed-bin
             )
 
             # ساخت بسته‌ها
