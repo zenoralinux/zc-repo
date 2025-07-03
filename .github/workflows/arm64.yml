@@ -41,8 +41,10 @@ jobs:
            cd /tmp/yay
            sudo -u builder makepkg -si --noconfirm --skippgpcheck
            rm -rf /tmp/yay
-           curl -sLo ~/bin/repo-add https://raw.githubusercontent.com/falconindy/pacman/refs/heads/master/scripts/repo-add.sh.in && \
-           chmod +x ~/bin/repo-add
+           curl ~/ https://raw.githubusercontent.com/falconindy/pacman/refs/heads/master/scripts/repo-add.sh.in 
+           sudo rm -fr /bin/repo-add
+           sudo mv ~/repo-add.sh.in /bin/repo-add
+           sudo chmod +x /bin/repo-add
 
             # Build packages
 
