@@ -1,26 +1,24 @@
-name: zenora ARM64 AUR Repository Builder
-
+name: zenora Linux Repository Builder
+ 
 on:
   push:
     branches: [ main ]
   schedule:
-    - cron: '0 3 * * *'  # Daily at 03:00 UTC
+    - cron: '0 0 * * *'  # روزانه اجرا شود
 
 jobs:
-  build-arm64:
+  build-repo:
     runs-on: ubuntu-latest
+    container: archlinux:latest
 
     steps:
+    # مرحله 1: دریافت مخزن
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Build compatible packages
-      uses: docker://archlinux:latest
-      env:
-        CODEBERG_TOKEN: ${{ secrets.CODEBERG_TOKEN }}
-      with:
-        entrypoint: /usr/bin/bash
-        args: |
+    # مرحله 2: تنظیم محیط ساخت
+    - name: Setup build environment
+      run: |
           # Install required packages
           pacman -Syu --noconfirm --needed --quiet git base-devel pacman-contrib
 
