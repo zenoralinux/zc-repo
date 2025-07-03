@@ -75,7 +75,8 @@ jobs:
          # تنظیمات Git
          git config --global user.name "GitHub Actions"
          git config --global user.email "actions@github.com"
-        
+
+         chown -R builder:builder /tmp
          # کپی کردن فایل‌های جدید به مسیر جدید
          mkdir -p existing_repo/zcrepo/aarch64
          find /tmp -name "*.pkg.tar.zst" -exec cp -f {} existing_repo/zcrepo/aarch64/ \;
