@@ -26,7 +26,7 @@ jobs:
         uses: addnab/docker-run-action@v3
         with:
           image: ghcr.io/fwcd/archlinux:latest
-          options: --platform linux/arm64
+          options: --platform linux/arm64 -v ${{ github.workspace }}:/workspace
           shell: bash
           run: |
            # مرحله 1: تنظیم محیط ساخت
@@ -50,23 +50,24 @@ jobs:
               gopeed-bin
             )
 
+            # Create artifacts directory in workspace
+            mkdir -p /workspace/artifacts
+
             for pkg in "${packages[@]}"; do
               echo "➡️ Building $pkg..."
-              sudo -u builder yay -S --noconfirm --mflags="--skippgpcheck" --builddir=/tmp "$pkg" \
-                || echo "⚠️ Failed to build $pkg"
+              sudo -u builder yay -S --noconfirm --mflags="--skippgpcheck" --builddir=/tmp "$pkg" && \
+                find /tmp -name "*.pkg.tar.zst" -exec cp {} /workspace/artifacts/ \; || \
+                echo "⚠️ Failed to build $pkg"
             done
-
-            # کپی بسته‌های ساخته شده به دایرکتوری مشترک
-            mkdir -p /tmp/artifacts
-            find /tmp -name "*.pkg.tar.zst" -exec cp {} /tmp/artifacts/ \;
 
      # مرحله 3: ذخیره سازی بسته‌های ساخته شده
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: arm64-packages
-          path: /tmp/artifacts/
+          path: ${{ github.workspace }}/artifacts/*.pkg.tar.zst
           retention-days: 1
+          if-no-files-found: error
 
   prepare-repo:
     needs: build-arm64
