@@ -31,14 +31,7 @@ jobs:
           run: |
            # مرحله 1: تنظیم محیط ساخت
            pacman -Rdd --noconfirm systemd-sysvcompat || true
-           pacman -Sy --noconfirm --needed git base-devel
-           pacman -S --noconfirm --needed \
-           hicolor-icon-theme libayatana-appindicator at-spi2-core \
-           fontconfig pango gtk3 ayatana-ido gdk-pixbuf2 \
-           libayatana-indicator libdbusmenu-glib cairo harfbuzz libepoxy \
-           python python-gobject python-pycountry gtk4 libadwaita meson \
-           cmake ninja qt6-base qt6-wayland vulkan-headers libdrm libxcb \
-           polkit nodejs npm wget yay
+           pacman -Sy --noconfirm --needed git base-devel yay
 
            # مرحله 3: نصب yay
            useradd -m builder
