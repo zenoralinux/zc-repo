@@ -21,21 +21,26 @@ jobs:
           options: --platform linux/arm64 -v ${{ github.workspace }}/artifacts:/out
           shell: bash
           run: |
-            pacman -Sy --noconfirm git base-devel sudo wget
-            useradd -m builder
-            echo "builder ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
-            chown -R builder:builder /github/workspace
+           # مرحله 1: تنظیم محیط ساخت
+           pacman -Rdd --noconfirm systemd-sysvcompat || true
+           pacman -Sy --noconfirm --needed git base-devel
+           pacman -S --noconfirm --needed \
+           hicolor-icon-theme libayatana-appindicator at-spi2-core \
+           fontconfig pango gtk3 ayatana-ido gdk-pixbuf2 \
+           libayatana-indicator libdbusmenu-glib cairo harfbuzz libepoxy \
+           python python-gobject python-pycountry gtk4 libadwaita meson \
+           cmake ninja qt6-base qt6-wayland vulkan-headers libdrm libxcb \
+           polkit nodejs npm wget
 
-            # Install yay as builder
-            sudo -u builder git clone https://aur.archlinux.org/yay.git /tmp/yay
-            cd /tmp/yay
-            sudo -u builder makepkg -si --noconfirm --skippgpcheck
+           # مرحله 3: نصب yay
+           useradd -m builder
+           echo "builder ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+           sudo -u builder git clone https://aur.archlinux.org/yay.git /tmp/yay
+           cd /tmp/yay
+           sudo -u builder makepkg -si --noconfirm --skippgpcheck
             rm -rf /tmp/yay
 
             # Build packages
-            mkdir -p /tmp/builds
-            chown -R builder:builder /tmp/builds
-            mkdir -p /out
 
             packages=(
               carburetor
@@ -46,15 +51,49 @@ jobs:
 
             for pkg in "${packages[@]}"; do
               echo "➡️ Building $pkg..."
-              sudo -u builder yay -S --noconfirm --mflags="--skippgpcheck" --builddir=/tmp/builds "$pkg" \
+              sudo -u builder yay -S --noconfirm --mflags="--skippgpcheck" --builddir=/tmp "$pkg" \
                 || echo "⚠️ Failed to build $pkg"
             done
 
-            # Copy built packages to output directory
-            find /tmp/builds -name '*.pkg.tar.zst' -exec cp {} /out/ \;
+     # مرحله 5: آماده‌سازی و سینک مخزن
+      - name: Prepare and Sync Repository
+        env:
+         CODEBERG_USER: zenoralinux
+         CODEBERG_TOKEN: ${{ secrets.CODEBERG_TOKEN }}
+        run: |
+         # پاکسازی توکن
+         CLEAN_TOKEN=$(echo "$CODEBERG_TOKEN" | tr -d '\n\r\t ')
+        
+         # تنظیمات Git
+         git config --global user.name "GitHub Actions"
+         git config --global user.email "actions@github.com"
+        
+         # کلون کردن مخزن موجود
+         cd "$GITHUB_WORKSPACE"
+         git clone "https://${CODEBERG_USER}:${CLEAN_TOKEN}@codeberg.org/${CODEBERG_USER}/zc-repo.git" existing_repo || \
+           { mkdir -p existing_repo/zcrepo/aarch64; cd existing_repo; git init; }
 
-      - name: Upload built packages
-        uses: actions/upload-artifact@v4
-        with:
-          name: built-aarch64-packages
-          path: artifacts/
+         # کپی کردن فایل‌های جدید به مسیر جدید
+         mkdir -p existing_repo/zcrepo/aarch64
+         find /tmp -name "*.pkg.tar.zst" -exec cp -f {} existing_repo/zcrepo/aarch64/ \;
+
+         # حذف فایل‌های قدیمی دیتابیس
+         cd existing_repo/zcrepo/aarch64
+         rm -f zc-repo.db* zc-repo.files*
+
+         # ایجاد دیتابیس جدید
+         repo-add zc-repo.db.tar.gz *.pkg.tar.zst
+
+         # تغییر نام فایل‌های دیتابیس به فرمت مورد نیاز
+         mv zc-repo.files.tar.gz zc-repo.files
+         mv zc-repo.db.tar.gz zc-repo.db
+
+         # کامیت و push تغییرات
+         cd ../../
+         git add .
+         git commit -m "Automated update: $(date +'%Y-%m-%d %H:%M:%S')"
+         git push origin main
+
+         # تأیید آپلود
+         echo "Repository successfully synced!"
+         echo "Access at: https://codeberg.org/zenoralinux/zc-repo/tree/main/zcrepo/aarch64"
