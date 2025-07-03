@@ -32,7 +32,7 @@ jobs:
            # مرحله 1: تنظیم محیط ساخت
            pacman -Rdd --noconfirm systemd-sysvcompat || true
            pacman -Syu --noconfirm --needed 
-           pacman -S --noconfirm --needed git base-devel pacman-contrib gnupg binutils
+           pacman -S --noconfirm --needed git base-devel pacman-contrib gnupg binutils curl
 
            # مرحله 3: نصب yay
            useradd -m builder
@@ -41,7 +41,8 @@ jobs:
            cd /tmp/yay
            sudo -u builder makepkg -si --noconfirm --skippgpcheck
            rm -rf /tmp/yay
-           sudo -u builder yay -S --noconfirm repo-add_and_sign
+           curl -sLo ~/bin/repo-add https://raw.githubusercontent.com/falconindy/pacman/refs/heads/master/scripts/repo-add.sh.in && \
+           chmod +x ~/bin/repo-add
 
             # Build packages
 
