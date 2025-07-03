@@ -38,15 +38,15 @@ jobs:
            libayatana-indicator libdbusmenu-glib cairo harfbuzz libepoxy \
            python python-gobject python-pycountry gtk4 libadwaita meson \
            cmake ninja qt6-base qt6-wayland vulkan-headers libdrm libxcb \
-           polkit nodejs npm wget
+           polkit nodejs npm wget yay
 
            # مرحله 3: نصب yay
            useradd -m builder
            echo "builder ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
-           sudo -u builder git clone https://aur.archlinux.org/yay.git /tmp/yay
-           cd /tmp/yay
-           sudo -u builder makepkg -si --noconfirm --skippgpcheck
-            rm -rf /tmp/yay
+           # sudo -u builder git clone https://aur.archlinux.org/yay.git /tmp/yay
+           # cd /tmp/yay
+           # sudo -u builder makepkg -si --noconfirm --skippgpcheck
+           # rm -rf /tmp/yay
 
             # Build packages
 
@@ -76,10 +76,6 @@ jobs:
          git config --global user.name "GitHub Actions"
          git config --global user.email "actions@github.com"
         
-         cd "$GITHUB_WORKSPACE"
-         git clone "https://${CODEBERG_USER}:${CLEAN_TOKEN}@codeberg.org/${CODEBERG_USER}/zc-repo.git" existing_repo || \
-          { mkdir -p existing_repo/zcrepo/aarch64; cd existing_repo; git init; }
-
          # کپی کردن فایل‌های جدید به مسیر جدید
          mkdir -p existing_repo/zcrepo/aarch64
          find /tmp -name "*.pkg.tar.zst" -exec cp -f {} existing_repo/zcrepo/aarch64/ \;
