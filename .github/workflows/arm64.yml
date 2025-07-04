@@ -32,7 +32,7 @@ jobs:
           set -e
           
           # نصب پیش‌نیازها
-          pacman -Syu --noconfirm --needed arch-install-scripts pacman-contrib wget curl base-devel zsh shadow tar gzip gnupg archlinux-keyring base debootstrap e2fsprogs dosfstools sudo
+          pacman -Syu --noconfirm --needed arch-install-scripts pacman-contrib wget curl base-devel zsh shadow tar gzip gnupg archlinux-keyring base debootstrap e2fsprogs sudo
 
           # ایجاد دایرکتوری rootfs
           ROOTFS_DIR="$HOME/zenora-rootfs"
