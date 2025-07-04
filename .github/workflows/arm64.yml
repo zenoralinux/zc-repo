@@ -1,5 +1,5 @@
 name: Arch Linux ARM64 RootFS Builder for Termux
- 
+
 on:
   push:
     branches: [ main ]
@@ -76,9 +76,9 @@ jobs:
           cd "$ROOTFS_DIR"
           tar -czvf /output/archlinux-arm64-rootfs.tar.gz .
 
-    # آپلود rootfs به عنوان آرتیفکت
+    # آپلود rootfs به عنوان آرتیفکت (نسخه v4)
     - name: Upload RootFS artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: archlinux-arm64-rootfs
         path: archlinux-arm64-rootfs.tar.gz
