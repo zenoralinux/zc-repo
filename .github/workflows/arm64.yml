@@ -68,9 +68,8 @@ jobs:
             zenora-back \
             zenora-wsl-zsh-config \
             zenora-conf-update \
-            neofetch \
+            zrepo/neofetch \
             zsh \
-            glibc
             
           # فشرده‌سازی rootfs
           sudo rm -rf "$ROOTFS_DIR"/var/cache/pacman/pkg/*
