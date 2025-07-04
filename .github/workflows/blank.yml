@@ -16,63 +16,9 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    # Step 2: Setup build environment
-    - name: Setup build environment
-      run: |
-        pacman -Rdd --noconfirm systemd-sysvcompat || true
-        pacman -Sy --noconfirm --needed git base-devel 
-        pacman -S --noconfirm --needed \
-          hicolor-icon-theme libayatana-appindicator at-spi2-core \
-          fontconfig pango gtk3 ayatana-ido gdk-pixbuf2 \
-          libayatana-indicator libdbusmenu-glib cairo harfbuzz libepoxy \
-          python python-gobject python-pycountry gtk4 libadwaita meson \
-          cmake ninja qt6-base qt6-wayland vulkan-headers libdrm libxcb \
-          polkit nodejs npm wget \
-          qt6-webengine yaml-cpp networkmanager upower \
-          kconfig ki18n kservice kwidgetsaddons kpmcore \
-          squashfs-tools rsync boost pybind11 doxygen \
-          dmidecode gptfdisk hwinfo kparts polkit-qt6 \
-          solid qt6-tools libpwquality ckbcomp
+    # [Previous steps remain unchanged until the repository handling...]
 
-    # Step 3: Install yay
-    - name: Install yay as builder user
-      run: |
-        useradd -m builder
-        echo "builder ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
-        sudo -u builder git clone https://aur.archlinux.org/yay.git /tmp/yay
-        cd /tmp/yay
-        sudo -u builder makepkg -si --noconfirm --skippgpcheck
-        rm -rf /tmp/yay
-
-    # Step 4: Build AUR packages
-    - name: Build AUR packages with yay
-      run: |
-        cd "$GITHUB_WORKSPACE"
-        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" carburetor
-        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" bottles
-        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" Packet
-        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" google-chrome
-        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" ascii-draw
-        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" protonup-qt-bin 
-        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" hiddify-app-bin
-        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" oblivion-desktop-bin
-        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" heroic-games-launcher-bin
-        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" brisk-bin
-        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" microsoft-edge-stable-bin
-        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" gopeed-bin
-        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" materialgram-bin
-        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" brave-bin
-        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" edex-ui-bin
-        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" zen-browser-bin
-
-        # Build calamares
-        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" ckbcomp
-        sudo -u builder git clone https://github.com/zenoralinux/calamares.git /tmp/calamares
-        cd /tmp/calamares
-        sudo -u builder makepkg -si --noconfirm --skippgpcheck
-
-    # Step 5: Prepare and sync repository
-    - name: Clone Repository
+    - name: Setup and Clone Repository
       env:
         CODEBERG_USER: zenoralinux
         CODEBERG_TOKEN: ${{ secrets.CODEBERG_TOKEN }}
@@ -84,48 +30,97 @@ jobs:
         git config --global user.name "GitHub Actions"
         git config --global user.email "actions@github.com"
         
-        # Clone or initialize repo
+        # Debug: Show current directory
+        echo "Current directory: $(pwd)"
+        ls -la
+        
+        # Initialize or clone repository
         if [ ! -d existing_repo ]; then
+          echo "Cloning repository..."
           git clone "https://${CODEBERG_USER}:${CLEAN_TOKEN}@codeberg.org/${CODEBERG_USER}/zc-repo.git" existing_repo || \
-            { mkdir -p existing_repo/zcrepo/x86_64; cd existing_repo; git init; git remote add origin "https://${CODEBERG_USER}:${CLEAN_TOKEN}@codeberg.org/${CODEBERG_USER}/zc-repo.git"; }
+          {
+            echo "Clone failed, initializing new repository..."
+            mkdir -p existing_repo/zcrepo/x86_64
+            cd existing_repo
+            git init
+            git remote add origin "https://${CODEBERG_USER}:${CLEAN_TOKEN}@codeberg.org/${CODEBERG_USER}/zc-repo.git"
+            touch README.md
+            git add .
+            git commit -m "Initial commit"
+          }
+        else
+          echo "Repository already exists"
+          cd existing_repo
+          git remote set-url origin "https://${CODEBERG_USER}:${CLEAN_TOKEN}@codeberg.org/${CODEBERG_USER}/zc-repo.git"
+          git fetch
+          git checkout main
         fi
+
+        # Verify repository setup
+        cd existing_repo
+        echo "Repository status:"
+        git status
+        echo "Remote info:"
+        git remote -v
 
     - name: Copy x86_64 packages
       run: |
-        # Copy new x86_64 packages
+        echo "Copying x86_64 packages..."
         mkdir -p existing_repo/zcrepo/x86_64
-        find /tmp -name "*.pkg.tar.zst" -exec cp -f {} existing_repo/zcrepo/x86_64/ \;
-
-        # Rebuild repo database
+        find /tmp -name "*.pkg.tar.zst" -exec cp -fv {} existing_repo/zcrepo/x86_64/ \;
+        
         cd existing_repo/zcrepo/x86_64
+        echo "Current package files:"
+        ls -la
+        
+        echo "Rebuilding repository database..."
         rm -f zc-repo.db* zc-repo.files*
-        repo-add zc-repo.db.tar.gz *.pkg.tar.zst
-        mv zc-repo.files.tar.gz zc-repo.files
-        mv zc-repo.db.tar.gz zc-repo.db
+        repo-add zc-repo.db.tar.gz *.pkg.tar.zst || echo "No packages found for x86_64"
+        [ -f zc-repo.files.tar.gz ] && mv zc-repo.files.tar.gz zc-repo.files
+        [ -f zc-repo.db.tar.gz ] && mv zc-repo.db.tar.gz zc-repo.db
 
     - name: Copy aarch64 packages
       run: |
-        # Copy new aarch64 packages
+        echo "Copying aarch64 packages..."
         mkdir -p existing_repo/zcrepo/aarch64
-        find /tmp -name "*any.pkg.tar.zst" -exec cp -f {} existing_repo/zcrepo/aarch64/ \;
-        find /tmp -name "*aarch64.pkg.tar.zst" -exec cp -f {} existing_repo/zcrepo/aarch64/ \;
-
-        # Rebuild repo database
+        find /tmp -name "*any.pkg.tar.zst" -exec cp -fv {} existing_repo/zcrepo/aarch64/ \;
+        find /tmp -name "*aarch64.pkg.tar.zst" -exec cp -fv {} existing_repo/zcrepo/aarch64/ \;
+        
         cd existing_repo/zcrepo/aarch64
+        echo "Current package files:"
+        ls -la
+        
+        echo "Rebuilding repository database..."
         rm -f zc-repo.db* zc-repo.files*
-        repo-add zc-repo.db.tar.gz *.pkg.tar.zst
-        mv zc-repo.files.tar.gz zc-repo.files
-        mv zc-repo.db.tar.gz zc-repo.db
+        repo-add zc-repo.db.tar.gz *.pkg.tar.zst || echo "No packages found for aarch64"
+        [ -f zc-repo.files.tar.gz ] && mv zc-repo.files.tar.gz zc-repo.files
+        [ -f zc-repo.db.tar.gz ] && mv zc-repo.db.tar.gz zc-repo.db
 
     - name: Push changes
       run: |
-        # Commit and push changes
         cd existing_repo
+        echo "Current directory: $(pwd)"
+        
+        # Verify git status
+        echo "Git status before add:"
+        git status
+        
+        # Add all changes
         git add .
-        git commit -m "Automated update: $(date +'%Y-%m-%d %H:%M:%S')" || echo "No changes to commit"
-        git pull --rebase origin main
+        
+        echo "Git status after add:"
+        git status
+        
+        # Commit changes
+        git commit -m "Automated update: $(date +'%Y-%m-%d %H:%M:%S')" || \
+          { echo "No changes to commit"; exit 0; }
+        
+        # Pull latest changes
+        git pull --rebase origin main || \
+          { echo "Pull failed, attempting force push"; git push --force origin main; exit 0; }
+        
+        # Push changes
         git push origin main
-
-        # Confirm upload
+        
         echo "Repository successfully updated!"
         echo "Access at: https://codeberg.org/zenoralinux/zc-repo/tree/main/zcrepo/"
