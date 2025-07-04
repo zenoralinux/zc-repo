@@ -26,7 +26,7 @@ jobs:
       uses: addnab/docker-run-action@v3
       with:
         image: ghcr.io/fwcd/archlinux:latest
-        options: --platform linux/arm64 -v $(pwd):/output
+        options: --platform linux/arm64 -v /github/workspace:/output
         shell: bash
         run: |
           set -e
@@ -76,7 +76,7 @@ jobs:
           cd "$ROOTFS_DIR"
           tar -czvf /output/archlinux-arm64-rootfs.tar.gz .
 
-    # آپلود rootfs به عنوان آرتیفکت (نسخه v4)
+    # آپلود rootfs به عنوان آرتیفکت
     - name: Upload RootFS artifact
       uses: actions/upload-artifact@v4
       with:
