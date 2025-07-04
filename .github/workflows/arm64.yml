@@ -32,7 +32,7 @@ jobs:
           set -e
           
           # نصب پیش‌نیازها
-          pacman -Syu --noconfirm --needed arch-install-scripts pacman-contrib 
+          pacman -Syu --noconfirm --needed arch-install-scripts pacman-contrib wget curl base-devel zip unzip zsh shadow
 
           # ایجاد دایرکتوری rootfs
           ROOTFS_DIR="/tmp/arch-rootfs"
