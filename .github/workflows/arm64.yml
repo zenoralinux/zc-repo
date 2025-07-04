@@ -32,53 +32,30 @@ jobs:
           set -e
           
           # نصب پیش‌نیازها
-          pacman -Syu --noconfirm --needed arch-install-scripts pacman-contrib wget curl base-devel zip unzip zsh shadow
+          pacman -Syu --noconfirm --needed arch-install-scripts pacman-contrib wget curl base-devel zsh shadow tar gzip gnupg archlinux-keyring base debootstrap e2fsprogs dosfstools sudo
 
           # ایجاد دایرکتوری rootfs
-          ROOTFS_DIR="/tmp/arch-rootfs"
+          ROOTFS_DIR="$HOME/zenora-rootfs"
           mkdir -p "$ROOTFS_DIR"
 
           # پایه‌سازی سیستم
-          pacstrap -C /etc/pacman.conf -c -G -M "$ROOTFS_DIR" base base-devel
+          pacstrap -G -M -C /etc/pacman.conf -K /mnt/sys-root base curl wget vim nano sudo texinfo man-db man-pages zsh shadow \
+          base bash coreutils file sed tar zstd \
+          pacman linux-aarch64 linux-firmware \ --cachedir ./pkg-cache
 
-          # تنظیمات پایه برای ترمیکس
-          echo "[general]
-          arch = aarch64
-          fileSystemType = ext4
-          " > "$ROOTFS_DIR/termux.properties"
-
-          # تنظیمات pacman برای rootfs
-          echo "[options]
-          Architecture = aarch64
-          Color
-          CheckSpace
-          SigLevel = Never
-          ParallelDownloads = 5
-          " > "$ROOTFS_DIR/etc/pacman.conf"
-
-          # تنظیمات لوکال
-          echo "LANG=en_US.UTF-8" > "$ROOTFS_DIR/etc/locale.conf"
-          echo "en_US.UTF-8 UTF-8" >> "$ROOTFS_DIR/etc/locale.gen"
-          chroot "$ROOTFS_DIR" locale-gen
-
-          # نصب بسته‌های ضروری برای ترمیکس
-          chroot "$ROOTFS_DIR" pacman -Syu --noconfirm --needed \
-            sudo bash-completion vim nano git wget curl openssh \
-            python python-pip nodejs npm ruby rust go \
-            clang cmake make gcc pkg-config \
-            termux-exec termux-tools proot-distro
-
-          # ایجاد کاربر معمولی
-          chroot "$ROOTFS_DIR" useradd -m -G wheel -s /bin/bash termux
-          echo "%wheel ALL=(ALL) ALL" >> "$ROOTFS_DIR/etc/sudoers"
+          echo "zenora" | sudo tee "$ROOTFS_DIR"/etc/hostname
+          echo "LANG=en_US.UTF-8" | sudo tee "$ROOTFS_DIR"/etc/locale.conf
+          echo "en_US.UTF-8 UTF-8" | sudo tee "$ROOTFS_DIR"/etc/locale.gen
+          sudo chroot "$ROOTFS_DIR" locale-gen
+          sudo rm -rf "$ROOTFS_DIR"/var/cache/pacman/pkg/*
 
           # فشرده‌سازی rootfs
           cd "$ROOTFS_DIR"
-          tar -czvf /output/archlinux-arm64-rootfs.tar.gz .
+          tar -czvf /output/zenroalinux-arm64-rootfs.tar.gz .
 
     # آپلود rootfs به عنوان آرتیفکت
       - name: Upload RootFS artifact
         uses: actions/upload-artifact@v4
         with:
-          name: archlinux-arm64-rootfs
-          path: archlinux-arm64-rootfs.tar.gz
+          name: zenroalinux-arm64-rootfs
+          path: zenroalinux-arm64-rootfs.tar.gz
