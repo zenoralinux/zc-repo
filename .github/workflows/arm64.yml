@@ -37,8 +37,10 @@ jobs:
             # ساخت rootfs
             ROOTFS_DIR=~/zenora-rootfs
             mkdir -p "$ROOTFS_DIR"
-            sed -i '/^\[core\]/i [zrepo]\nSigLevel = Never\nServer = https://codeberg.org/zenoralinux/zenora-repo/raw/branch/main/$arch\n' /etc/pacman.conf
-
+            sed -i '/^\[core\]/i\
+            [zrepo]\
+            SigLevel = Never\
+            Server = https://codeberg.org/zenoralinux/zenora-repo/raw/branch/main/$arch' /etc/pacman.conf
 
             sudo pacstrap -G -M -C /etc/pacman.conf "$ROOTFS_DIR" \
               base curl wget nano sudo texinfo man-db man-pages zsh shadow \
