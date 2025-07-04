@@ -1,5 +1,5 @@
-name: zenora ARM64 AUR Repository Builder
- 
+name: Arch Linux ARM64 RootFS Builder for Termux
+
 on:
   push:
     branches: [ main ]
@@ -7,97 +7,78 @@ on:
     - cron: '0 3 * * *'  # اجرای روزانه ساعت 03:00 UTC
 
 jobs:
-  build-arm64:
+  build-arm64-rootfs:
     runs-on: ubuntu-latest
 
     steps:
-    # مرحله 0: فعال‌سازی QEMU برای پشتیبانی از ARM64
-    - name: Enable QEMU for aarch64
+    # فعال‌سازی QEMU برای پشتیبانی از ARM64
+    - name: Enable QEMU for ARM64
       uses: docker/setup-qemu-action@v3
       with:
-        platforms: all
+        platforms: arm64
 
-    # مرحله 1: دریافت سورس مخزن
+    # دریافت سورس مخزن
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    # مرحله 2: ساخت بسته‌ها در کانتینر ARM64 با pacman-contrib
-    - name: Build ARM64 packages in container
+    # ساخت rootfs در کانتینر ARM64
+    - name: Build ARM64 RootFS
       uses: addnab/docker-run-action@v3
       with:
         image: ghcr.io/fwcd/archlinux:latest
-        options: --platform linux/arm64
+        options: --platform linux/arm64 -v $(pwd):/output
         shell: bash
         run: |
           set -e
+          
+          # نصب پیش‌نیازها
+          pacman -Syu --noconfirm --needed arch-install-scripts pacman-contrib qemu-user-static-binfmt
 
-          echo "🔧 Updating base system..."
-          pacman -Sy --noconfirm --needed
-          pacman -S --noconfirm --needed git base-devel pacman-contrib gnupg binutils curl fakeroot
+          # ایجاد دایرکتوری rootfs
+          ROOTFS_DIR="/tmp/arch-rootfs"
+          mkdir -p "$ROOTFS_DIR"
 
-          echo "👤 Creating builder user..."
-          useradd -m builder
-          echo "builder ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+          # پایه‌سازی سیستم
+          pacstrap -C /etc/pacman.conf -c -G -M "$ROOTFS_DIR" base base-devel
 
-          echo "🚀 Installing yay AUR helper..."
-          sudo -u builder git clone https://aur.archlinux.org/yay.git /tmp/yay
-          cd /tmp/yay
-          sudo -u builder makepkg -si --noconfirm --skippgpcheck
+          # تنظیمات پایه برای ترمیکس
+          echo "[general]
+          arch = aarch64
+          fileSystemType = ext4
+          " > "$ROOTFS_DIR/termux.properties"
 
-          echo "📦 Packages to build:"
-          packages=(
-           # carburetor
-           # ascii-draw
-           # materialgram-bin
-           # gopeed-bin
-          )
+          # تنظیمات pacman برای rootfs
+          echo "[options]
+          Architecture = aarch64
+          Color
+          CheckSpace
+          SigLevel = Never
+          ParallelDownloads = 5
+          " > "$ROOTFS_DIR/etc/pacman.conf"
 
-          mkdir -p /output
+          # تنظیمات لوکال
+          echo "LANG=en_US.UTF-8" > "$ROOTFS_DIR/etc/locale.conf"
+          echo "en_US.UTF-8 UTF-8" >> "$ROOTFS_DIR/etc/locale.gen"
+          chroot "$ROOTFS_DIR" locale-gen
 
-          for pkg in "${packages[@]}"; do
-            echo "➡️ Building $pkg..."
-            sudo -u builder yay -S --noconfirm --mflags="--skippgpcheck --nocheck" --builddir=/tmp "$pkg" || echo "⚠️ Failed to build $pkg"
-          done
+          # نصب بسته‌های ضروری برای ترمیکس
+          chroot "$ROOTFS_DIR" pacman -Syu --noconfirm --needed \
+            sudo bash-completion vim nano git wget curl openssh \
+            python python-pip nodejs npm ruby rust go \
+            clang cmake make gcc pkg-config \
+            termux-exec termux-tools proot-distro
 
-          echo "📁 Copying packages to /output..."
-          find /tmp/yay -name "*.pkg.tar.zst" -exec cp -v {} /output/ \;
+          # ایجاد کاربر معمولی
+          chroot "$ROOTFS_DIR" useradd -m -G wheel -s /bin/bash termux
+          echo "%wheel ALL=(ALL) ALL" >> "$ROOTFS_DIR/etc/sudoers"
 
-    # مرحله 3: سینک با مخزن Codeberg
-    - name: Sync built packages to Codeberg repo
-      env:
-        CODEBERG_USER: zenoralinux
-        CODEBERG_TOKEN: ${{ secrets.CODEBERG_TOKEN }}
-      run: |
-        set -e
+          # فشرده‌سازی rootfs
+          cd "$ROOTFS_DIR"
+          tar -czvf /output/archlinux-arm64-rootfs.tar.gz .
 
-        echo "🔑 Cleaning token..."
-        CLEAN_TOKEN=$(echo "$CODEBERG_TOKEN" | tr -d '\n\r\t ')
-
-        echo "🔁 Cloning Codeberg repo..."
-        git clone "https://${CODEBERG_USER}:${CLEAN_TOKEN}@codeberg.org/${CODEBERG_USER}/zc-repo.git" existing_repo
-        mkdir -p existing_repo/zcrepo/aarch64
-
-        echo "📦 Copying packages to Codeberg repo..."
-        cp -v /home/runner/work/zenora-repo/zenora-repo/output/*.pkg.tar.zst existing_repo/zcrepo/aarch64/
-
-        cd existing_repo/zcrepo/aarch64
-
-        echo "🧹 Cleaning old database files..."
-        rm -f zc-repo.db* zc-repo.files*
-
-        echo "🧱 Rebuilding repo database..."
-        repo-add zc-repo.db.tar.gz *.pkg.tar.zst
-
-        mv -f zc-repo.db.tar.gz zc-repo.db
-        mv -f zc-repo.files.tar.gz zc-repo.files
-
-        echo "🔧 Git config & commit..."
-        git config user.name "GitHub Actions"
-        git config user.email "actions@github.com"
-        cd ../../
-        git add .
-        git commit -m "🆕 Automated update: $(date +'%Y-%m-%d %H:%M:%S')" || echo "ℹ️ Nothing to commit"
-        git push origin main
-
-        echo "✅ Repository synced successfully!"
-        echo "🌐 View: https://codeberg.org/${CODEBERG_USER}/zc-repo/tree/main/zcrepo/aarch64"
+    # آپلود rootfs به عنوان آرتیفکت
+    - name: Upload RootFS artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: archlinux-arm64-rootfs
+        path: archlinux-arm64-rootfs.tar.gz
