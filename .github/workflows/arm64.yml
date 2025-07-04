@@ -66,4 +66,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
          name: zenroalinux-arm64-rootfs
-         path: ${{ env.HOME }}/zenroalinux-arm64-rootfs.tar.gz
+         path: $HOME/zenroalinux-arm64-rootfs.tar.gz
