@@ -11,39 +11,38 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # مرحله 0: فعال‌سازی QEMU برای پشتیبانی از معماری ARM64
+      # مرحله 0: فعال‌سازی QEMU برای معماری‌های دیگر
       - name: Enable QEMU for aarch64
         uses: docker/setup-qemu-action@v3
         with:
           platforms: all
 
-      # مرحله 1: دریافت سورس مخزن اصلی GitHub
+      # مرحله 1: کلون مخزن فعلی
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # مرحله 2: ساخت بسته‌های AUR در کانتینر ARM64 با QEMU
-      - name: Build ARM64 packages in container
+      # مرحله 2: ساخت RootFS در container با QEMU و mount workspace
+      - name: Build ARM64 RootFS in container
         uses: addnab/docker-run-action@v3
         with:
           image: ghcr.io/fwcd/archlinux:latest
-          options: --platform linux/arm64 --privileged
+          options: --platform linux/arm64 --privileged -v ${{ github.workspace }}:/output
           shell: bash
           run: |
             set -e
 
-            # نصب پیش‌نیازها
+            # نصب ابزارهای مورد نیاز
             pacman -Syu --noconfirm --needed arch-install-scripts pacman-contrib wget curl base-devel sudo
 
-            # ایجاد دایرکتوری rootfs
+            # ساخت rootfs
             ROOTFS_DIR=~/zenora-rootfs
             mkdir -p "$ROOTFS_DIR"
 
-            # نصب سیستم پایه
             sudo pacstrap -G -M -C /etc/pacman.conf "$ROOTFS_DIR" \
               base curl wget nano sudo texinfo man-db man-pages zsh shadow \
-              bash coreutils file sed tar zstd pacman 
+              bash coreutils file sed tar zstd pacman
 
-            # تنظیمات locale
+            # تنظیم locale
             sudo sed -i 's/^#en_US.UTF-8/en_US.UTF-8/' "$ROOTFS_DIR"/etc/locale.gen
             arch-chroot "$ROOTFS_DIR" locale-gen
 
@@ -55,13 +54,14 @@ jobs:
             cp "$ROOTFS_DIR"/etc/skel/.bashrc "$ROOTFS_DIR"/etc/skel/.zshrc 2>/dev/null || true
             touch "$ROOTFS_DIR"/etc/skel/.zshrc
 
-            # پاک‌سازی کش و ساخت فایل rootfs
+            # حذف کش بسته‌ها
             sudo rm -rf "$ROOTFS_DIR"/var/cache/pacman/pkg/*
-            OUTPUT_FILE=$GITHUB_WORKSPACE/zenroalinux-arm64-rootfs.tar.gz
-            tar -czvf "$OUTPUT_FILE" -C "$ROOTFS_DIR" .
-            ls -lh "$OUTPUT_FILE"
 
-      # مرحله 3: آپلود فایل rootfs ساخته‌شده
+            # ساخت فایل فشرده در مسیر mount شده workspace
+            tar -czvf /output/zenroalinux-arm64-rootfs.tar.gz -C "$ROOTFS_DIR" .
+            ls -lh /output/zenroalinux-arm64-rootfs.tar.gz
+
+      # مرحله 3: آپلود فایل rootfs به عنوان artifact
       - name: Upload RootFS artifact
         uses: actions/upload-artifact@v4
         with:
