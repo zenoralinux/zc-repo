@@ -37,10 +37,12 @@ jobs:
             # ساخت rootfs
             ROOTFS_DIR=~/zenora-rootfs
             mkdir -p "$ROOTFS_DIR"
+            sed -i '/^\[core\]/i [zrepo]\nSigLevel = Never\nServer = https://codeberg.org/zenoralinux/zenora-repo/raw/branch/main/$arch\n' /etc/pacman.conf
+
 
             sudo pacstrap -G -M -C /etc/pacman.conf "$ROOTFS_DIR" \
               base curl wget nano sudo texinfo man-db man-pages zsh shadow \
-              bash coreutils file sed tar zstd pacman
+              bash coreutils file sed tar zstd pacman zenora-release zrepo/neofetch
 
             # تنظیم locale
             sudo sed -i 's/^#en_US.UTF-8/en_US.UTF-8/' "$ROOTFS_DIR"/etc/locale.gen
@@ -53,10 +55,13 @@ jobs:
             sed -i 's|^\(root:[^:]*:[^:]*:[^:]*:[^:]*:[^:]*:\).*|\1/bin/zsh|' "$ROOTFS_DIR"/etc/passwd
             cp "$ROOTFS_DIR"/etc/skel/.bashrc "$ROOTFS_DIR"/etc/skel/.zshrc 2>/dev/null || true
             touch "$ROOTFS_DIR"/etc/skel/.zshrc
-
+            # resolve dns config
+            echo "nameserver 1.1.1.1" > "$ROOTFS_DIR"/etc/resolv.conf
+            # کپی کردن پکمن اصلی 
+            cp /etc/pacman.conf "$ROOTFS_DIR"/etc/pacman.conf
             # حذف کش بسته‌ها
             sudo rm -rf "$ROOTFS_DIR"/var/cache/pacman/pkg/*
-
+             
             # ساخت فایل فشرده در مسیر mount شده workspace
             tar -czvf /output/zenroalinux-arm64-rootfs.tar.gz -C "$ROOTFS_DIR" .
             ls -lh /output/zenroalinux-arm64-rootfs.tar.gz
