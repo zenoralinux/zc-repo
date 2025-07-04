@@ -43,9 +43,10 @@ jobs:
           mkdir -p "$ROOTFS_DIR/run/systemd/system"
 
           # پایه‌سازی سیستم
-          pacstrap -G -M -C /etc/pacman.conf  base curl wget vim nano sudo texinfo man-db man-pages zsh shadow \
+          pacstrap -G -M -C /etc/pacman.conf "$ROOTFS_DIR" base curl wget vim nano sudo texinfo man-db man-pages zsh shadow \
           base bash coreutils file sed tar zstd \
-          pacman linux-aarch64 linux-firmware 
+          pacman linux-aarch64 linux-firmware
+
 
           echo "zenora" | sudo tee "$ROOTFS_DIR"/etc/hostname
           echo "LANG=en_US.UTF-8" | sudo tee "$ROOTFS_DIR"/etc/locale.conf
