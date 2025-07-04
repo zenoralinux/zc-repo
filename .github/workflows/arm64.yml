@@ -47,18 +47,18 @@ jobs:
 
           
             # set zsh globally
-          echo "/bin/zsh" >> /mnt/sys-root/etc/shells
-          echo "SHELL=/bin/zsh" >> /mnt/sys-root/etc/environment
-          sed -i 's|^SHELL=.*|SHELL=/bin/zsh|' /mnt/sys-root/etc/default/useradd
+          echo "/bin/zsh" >> "$ROOTFS_DIR"/etc/shells
+          echo "SHELL=/bin/zsh" >> "$ROOTFS_DIR"/etc/environment
+          sed -i 's|^SHELL=.*|SHELL=/bin/zsh|' "$ROOTFS_DIR"/etc/default/useradd
          
           # make zsh default for root
-          sed -i 's|^root:.*:bash|root:*:*:/bin/zsh|' "$ROOTFS_DIR"/etc/passwd
+          sed -i 's|^\(root:[^:]*:[^:]*:[^:]*:[^:]*:[^:]*:\).*|\1/bin/zsh|' "$ROOTFS_DIR"/etc/passwd
           cp "$ROOTFS_DIR"/etc/skel/.bashrc "$ROOTFS_DIR"/etc/skel/.zshrc 2>/dev/null || true
           touch "$ROOTFS_DIR"/etc/skel/.zshrc
 
 
           cp /etc/pacman.conf "$ROOTFS_DIR"/etc/pacman.conf
-          cp -r /etc/pacman.d "$ROOTFS_DIR"etc/
+          cp -r /etc/pacman.d "$ROOTFS_DIR"/etc/
           echo -e "\n[zrepo]\nSigLevel = Never\nServer = https://codeberg.org/zenoralinux/zenora-repo/media/branch/main/\$arch" >> "$ROOTFS_DIR"/etc/pacman.conf
 
           arch-chroot "$ROOTFS_DIR" pacman -Sy --noconfirm
@@ -76,6 +76,8 @@ jobs:
           sudo rm -rf "$ROOTFS_DIR"/var/cache/pacman/pkg/*
           cd ~
           tar -czvf  zenroalinux-arm64-rootfs.tar.gz "$ROOTFS_DIR"/*
+          ls -lh zenroalinux-arm64-rootfs.tar.gz
+
     # آپلود rootfs به عنوان آرتیفکت
       - name: Upload RootFS artifact
         uses: actions/upload-artifact@v4
