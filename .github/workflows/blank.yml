@@ -19,16 +19,20 @@ jobs:
     # مرحله 2: تنظیم محیط ساخت
     - name: Setup build environment
       run: |
-        pacman -Rdd --noconfirm systemd-sysvcompat || true
-        pacman -Sy --noconfirm --needed git base-devel
-        pacman -S --noconfirm --needed \
-          hicolor-icon-theme libayatana-appindicator at-spi2-core \
-          fontconfig pango gtk3 ayatana-ido gdk-pixbuf2 \
-          libayatana-indicator libdbusmenu-glib cairo harfbuzz libepoxy \
-          python python-gobject python-pycountry gtk4 libadwaita meson \
-          cmake ninja qt6-base qt6-wayland vulkan-headers libdrm libxcb \
-          polkit nodejs npm wget
-
+       pacman -Rdd --noconfirm systemd-sysvcompat || true
+       pacman -Sy --noconfirm --needed git base-devel 
+       pacman -S --noconfirm --needed \
+       hicolor-icon-theme libayatana-appindicator at-spi2-core \
+       fontconfig pango gtk3 ayatana-ido gdk-pixbuf2 \
+       libayatana-indicator libdbusmenu-glib cairo harfbuzz libepoxy \
+       python python-gobject python-pycountry gtk4 libadwaita meson \
+       cmake ninja qt6-base qt6-wayland vulkan-headers libdrm libxcb \
+       polkit nodejs npm wget \
+       qt6-webengine yaml-cpp networkmanager upower \
+       kconfig ki18n kservice kwidgetsaddons kpmcore \
+       squashfs-tools rsync boost pybind11 doxygen \
+       dmidecode gptfdisk hwinfo kparts polkit-qt6 \
+       solid qt6-tools libpwquality ckbcomp
     # مرحله 3: نصب yay
     - name: Install yay as builder user
       run: |
@@ -59,8 +63,10 @@ jobs:
         sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" materialgram-bin
         sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" brave-bin
         sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" edex-ui-bin
+        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" zen-browser-bin
+
         # ساخت بسته calamares
-        
+        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" ckbcomp
         sudo -u builder git clone https://github.com/zenoralinux/calamares.git /tmp/calamares
         cd /tmp/calamares
         sudo -u builder makepkg -si --noconfirm --skippgpcheck
