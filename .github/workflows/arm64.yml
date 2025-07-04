@@ -41,17 +41,14 @@ jobs:
           # ایجاد دایرکتوری‌های لازم برای جلوگیری از خطا
           mkdir -p "$ROOTFS_DIR/mnt/sys-root"
           mkdir -p "$ROOTFS_DIR/run/systemd/system"
-
+          mkdir /mnt/sys-root-skeleton /mnt/sys-root
+          mount --bind /mnt/sys-root-skeleton /mnt/sys-root
+          
           # پایه‌سازی سیستم
-          pacstrap -G -M -C /etc/pacman.conf "$ROOTFS_DIR" base curl wget vim nano sudo texinfo man-db man-pages zsh shadow \
+          pacstrap -G -M -K /mnt/sys-root -C /etc/pacman.conf "$ROOTFS_DIR" base curl wget vim nano sudo texinfo man-db man-pages zsh shadow \
           base bash coreutils file sed tar zstd \
           pacman linux-aarch64 linux-firmware
 
-
-          echo "zenora" | sudo tee "$ROOTFS_DIR"/etc/hostname
-          echo "LANG=en_US.UTF-8" | sudo tee "$ROOTFS_DIR"/etc/locale.conf
-          echo "en_US.UTF-8 UTF-8" | sudo tee "$ROOTFS_DIR"/etc/locale.gen
-          sudo chroot "$ROOTFS_DIR" locale-gen
           sudo rm -rf "$ROOTFS_DIR"/var/cache/pacman/pkg/*
 
           # فشرده‌سازی rootfs
