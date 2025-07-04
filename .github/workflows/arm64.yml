@@ -38,12 +38,12 @@ jobs:
           ROOTFS_DIR="$HOME/zenora-rootfs"
           mkdir -p "$ROOTFS_DIR"
              
-          sudo chroot "$ROOTFS_DIR" locale-gen
 
           # پایه‌سازی سیستم
           pacstrap -G -M -C /etc/pacman.conf "$ROOTFS_DIR" base curl wget vim nano sudo texinfo man-db man-pages zsh shadow \
           base bash coreutils file sed tar zstd \
           pacman linux-aarch64 linux-firmware
+          chroot "$ROOTFS_DIR" /bin/bash -c "locale-gen"
 
           sudo rm -rf "$ROOTFS_DIR"/var/cache/pacman/pkg/*
 
