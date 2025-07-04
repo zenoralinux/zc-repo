@@ -59,13 +59,13 @@ jobs:
 
           # فشرده‌سازی rootfs
           sudo rm -rf "$ROOTFS_DIR"/var/cache/pacman/pkg/*
-          cd ~
-          tar -czvf  zenroalinux-arm64-rootfs.tar.gz "$ROOTFS_DIR"/*
-          ls -lh zenroalinux-arm64-rootfs.tar.gz
+      - name: Create tar.gz in $HOME
+        run: |
+          tar -czvf "$HOME/zenroalinux-arm64-rootfs.tar.gz" -C "$ROOTFS_DIR" .
+            ls -lh "$HOME/zenroalinux-arm64-rootfs.tar.gz"
 
-    # آپلود rootfs به عنوان آرتیفکت
       - name: Upload RootFS artifact
         uses: actions/upload-artifact@v4
         with:
-          name: zenroalinux-arm64-rootfs
-          path: zenroalinux-arm64-rootfs.tar.gz
+         name: zenroalinux-arm64-rootfs
+         path: ${{ env.HOME }}/zenroalinux-arm64-rootfs.tar.gz
