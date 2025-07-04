@@ -41,7 +41,6 @@ jobs:
           # ایجاد دایرکتوری‌های لازم برای جلوگیری از خطا
           mkdir -p "$ROOTFS_DIR/mnt/sys-root"
           mkdir -p "$ROOTFS_DIR/run/systemd/system"
-          mount --bind /run/systemd/system "$ROOTFS_DIR/run/systemd/system"
 
           # پایه‌سازی سیستم
           pacstrap -G -M -C /etc/pacman.conf -K /mnt/sys-root base curl wget vim nano sudo texinfo man-db man-pages zsh shadow \
