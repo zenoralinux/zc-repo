@@ -32,7 +32,7 @@ jobs:
        kconfig ki18n kservice kwidgetsaddons kpmcore \
        squashfs-tools rsync boost pybind11 doxygen \
        dmidecode gptfdisk hwinfo kparts polkit-qt6 \
-       solid qt6-tools libpwquality ckbcomp
+       solid qt6-tools libpwquality 
     # مرحله 3: نصب yay
     - name: Install yay as builder user
       run: |
