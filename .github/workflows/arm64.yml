@@ -1,4 +1,4 @@
-name: Arch Linux ARM64 RootFS Builder for Termux
+name: zenora ARM64 AUR Repository Builder
 
 on:
   push:
@@ -7,32 +7,32 @@ on:
     - cron: '0 3 * * *'  # اجرای روزانه ساعت 03:00 UTC
 
 jobs:
-  build-arm64-rootfs:
+  build-arm64:
     runs-on: ubuntu-latest
 
     steps:
-    # فعال‌سازی QEMU برای پشتیبانی از ARM64
-    - name: Enable QEMU for ARM64
-      uses: docker/setup-qemu-action@v3
-      with:
-        platforms: arm64
+    # مرحله 0: فعال‌سازی QEMU برای پشتیبانی از معماری ARM64
+      - name: Enable QEMU for aarch64
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: all
 
-    # دریافت سورس مخزن
-    - name: Checkout repository
-      uses: actions/checkout@v4
+    # مرحله 1: دریافت سورس مخزن اصلی GitHub
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    # ساخت rootfs در کانتینر ARM64
-    - name: Build ARM64 RootFS
-      uses: addnab/docker-run-action@v3
-      with:
+    # مرحله 2: ساخت بسته‌های AUR در کانتینر ARM64 با QEMU
+      - name: Build ARM64 packages in container
+        uses: addnab/docker-run-action@v3
+        with:
         image: ghcr.io/fwcd/archlinux:latest
-        options: --platform linux/arm64 -v /github/workspace:/output
+        options: --platform linux/arm64
         shell: bash
         run: |
           set -e
           
           # نصب پیش‌نیازها
-          pacman -Syu --noconfirm --needed arch-install-scripts pacman-contrib qemu-user-static-binfmt
+          pacman -Syu --noconfirm --needed arch-install-scripts pacman-contrib 
 
           # ایجاد دایرکتوری rootfs
           ROOTFS_DIR="/tmp/arch-rootfs"
