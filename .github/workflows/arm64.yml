@@ -32,7 +32,7 @@ jobs:
           set -e
 
           # نصب پیش‌نیازها
-          pacman -Syu --noconfirm --needed arch-install-scripts pacman-contrib wget curl base-devel zsh shadow tar gzip gnupg archlinux-keyring base debootstrap e2fsprogs sudo
+          pacman -Syu --noconfirm --needed arch-install-scripts pacman-contrib wget curl base-devel sudo
           ROOTFS_DIR=~/zenora-rootfs
           # ایجاد دایرکتوری rootfs
           mkdir -p ~/zenora-rootfs
@@ -40,7 +40,7 @@ jobs:
           # پایه‌سازی سیستم
           sudo pacstrap -G -M -C /etc/pacman.conf "$ROOTFS_DIR" \
           base curl wget nano sudo texinfo man-db man-pages zsh shadow \
-          bash coreutils file sed tar zstd pacman linux-aarch64
+          bash coreutils file sed tar zstd pacman 
 
           sudo sed -i 's/^#en_US.UTF-8/en_US.UTF-8/' "$ROOTFS_DIR"/etc/locale.gen
           arch-chroot "$ROOTFS_DIR" locale-gen
@@ -55,4 +55,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: zenroalinux-arm64-rootfs
-          path: zenroalinux-arm64-rootfs.tar.gz
+          path: ~/zenroalinux-arm64-rootfs.tar.gz
