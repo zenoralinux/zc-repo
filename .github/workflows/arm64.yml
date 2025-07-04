@@ -35,16 +35,15 @@ jobs:
           pacman -Syu --noconfirm --needed arch-install-scripts pacman-contrib wget curl base-devel zsh shadow tar gzip gnupg archlinux-keyring base debootstrap e2fsprogs sudo
 
           # ایجاد دایرکتوری rootfs
-          ROOTFS_DIR="$HOME/zenora-rootfs"
-          mkdir -p "$ROOTFS_DIR"
-             
+          mkdir /mnt/sys-root-skeleton /mnt/sys-root
+          mount --bind /mnt/sys-root-skeleton /mnt/sys-root
 
           # پایه‌سازی سیستم
-          pacstrap -G -M -C /etc/pacman.conf "$ROOTFS_DIR" base curl wget vim nano sudo texinfo man-db man-pages zsh shadow \
+          sudo pacstrap -G -M -C /etc/pacman.conf /mnt/sys-root base curl wget vim nano sudo texinfo man-db man-pages zsh shadow \
           base bash coreutils file sed tar zstd \
           pacman linux-aarch64 linux-firmware
-          chroot "$ROOTFS_DIR" /bin/bash -c "locale-gen"
-
+          
+          arch-chroot /mnt/sys-root locale-gen
           sudo rm -rf "$ROOTFS_DIR"/var/cache/pacman/pkg/*
 
           # فشرده‌سازی rootfs
