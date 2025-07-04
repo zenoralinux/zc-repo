@@ -25,10 +25,10 @@ jobs:
       - name: Build ARM64 packages in container
         uses: addnab/docker-run-action@v3
         with:
-        image: ghcr.io/fwcd/archlinux:latest
-        options: --platform linux/arm64
-        shell: bash
-        run: |
+         image: ghcr.io/fwcd/archlinux:latest
+         options: --platform linux/arm64
+         shell: bash
+         run: |
           set -e
           
           # نصب پیش‌نیازها
