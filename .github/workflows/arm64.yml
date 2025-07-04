@@ -57,20 +57,6 @@ jobs:
           touch "$ROOTFS_DIR"/etc/skel/.zshrc
 
 
-          cp /etc/pacman.conf "$ROOTFS_DIR"/etc/pacman.conf
-          cp -r /etc/pacman.d "$ROOTFS_DIR"/etc/
-          echo -e "\n[zrepo]\nSigLevel = Never\nServer = https://codeberg.org/zenoralinux/zenora-repo/media/branch/main/\$arch" >> "$ROOTFS_DIR"/etc/pacman.conf
-
-          arch-chroot "$ROOTFS_DIR" pacman -Sy --noconfirm
-          arch-chroot "$ROOTFS_DIR" pacman -S --noconfirm \
-            zenora-release \
-            zenora-fake-apt \
-            zenora-back \
-            zenora-wsl-zsh-config \
-            zenora-conf-update \
-            zrepo/neofetch \
-            zsh \
-            
           # فشرده‌سازی rootfs
           sudo rm -rf "$ROOTFS_DIR"/var/cache/pacman/pkg/*
           cd ~
