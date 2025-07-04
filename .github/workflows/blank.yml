@@ -59,11 +59,15 @@ jobs:
         sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" materialgram-bin
         sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" brave-bin
         sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" edex-ui-bin
+        # ساخت بسته calamares
         
+        sudo -u builder git clone https://github.com/zenoralinux/calamares.git /tmp/calamares
+        cd /tmp/calamares
+        sudo -u builder makepkg -si --noconfirm --skippgpcheck
 
 
     # مرحله 5: آماده‌سازی و سینک مخزن
-    - name: Prepare and Sync Repository
+    - name: Clone Repository
       env:
         CODEBERG_USER: zenoralinux
         CODEBERG_TOKEN: ${{ secrets.CODEBERG_TOKEN }}
@@ -79,22 +83,39 @@ jobs:
         cd "$GITHUB_WORKSPACE"
         git clone "https://${CODEBERG_USER}:${CLEAN_TOKEN}@codeberg.org/${CODEBERG_USER}/zc-repo.git" existing_repo || \
           { mkdir -p existing_repo/zcrepo/x86_64; cd existing_repo; git init; }
-
-        # کپی کردن فایل‌های جدید به مسیر جدید
+          
+    - name: copying x86_64 repo
+      run: |
+        # کپی کردن فایل‌های جدید x86_64 به مسیر جدید
         mkdir -p existing_repo/zcrepo/x86_64
         find /tmp -name "*.pkg.tar.zst" -exec cp -f {} existing_repo/zcrepo/x86_64/ \;
 
         # حذف فایل‌های قدیمی دیتابیس
         cd existing_repo/zcrepo/x86_64
         rm -f zc-repo.db* zc-repo.files*
-
         # ایجاد دیتابیس جدید
         repo-add zc-repo.db.tar.gz *.pkg.tar.zst
+        # تغییر نام فایل‌های دیتابیس به فرمت مورد نیاز
+        mv zc-repo.files.tar.gz zc-repo.files
+        mv zc-repo.db.tar.gz zc-repo.db
+    - name: copying aarch64 repo
+      run: |
+        # کپی کردن فایل‌های arm64 جدید به مسیر جدید
+        mkdir -p existing_repo/zcrepo/aarch64
+        find /tmp -name "*any.pkg.tar.zst" -exec cp -f {} existing_repo/zcrepo/aarch64/ \;
+        find /tmp -name "*aarch64.pkg.tar.zst" -exec cp -f {} existing_repo/zcrepo/aarch64/ \;
 
+        # حذف فایل‌های قدیمی دیتابیس
+        cd existing_repo/zcrepo/aarch64
+        rm -f zc-repo.db* zc-repo.files*
+        # ایجاد دیتابیس جدید
+        repo-add zc-repo.db.tar.gz *.pkg.tar.zst
         # تغییر نام فایل‌های دیتابیس به فرمت مورد نیاز
         mv zc-repo.files.tar.gz zc-repo.files
         mv zc-repo.db.tar.gz zc-repo.db
 
+    - name: push repo
+      run: |
         # کامیت و push تغییرات
         cd ../../
         git add .
@@ -103,4 +124,4 @@ jobs:
 
         # تأیید آپلود
         echo "Repository successfully synced!"
-        echo "Access at: https://codeberg.org/zenoralinux/zc-repo/tree/main/zcrepo/x86_64"
+        echo "Access at: https://codeberg.org/zenoralinux/zc-repo/tree/main/zcrepo/"
