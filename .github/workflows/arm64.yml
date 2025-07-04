@@ -33,21 +33,22 @@ jobs:
 
           # نصب پیش‌نیازها
           pacman -Syu --noconfirm --needed arch-install-scripts pacman-contrib wget curl base-devel zsh shadow tar gzip gnupg archlinux-keyring base debootstrap e2fsprogs sudo
-
+          ROOTFS_DIR=~/zenora-rootfs
           # ایجاد دایرکتوری rootfs
-          mkdir -p ~/zenora-rootfs/proc
+          mkdir -p ~/zenora-rootfs
          
           # پایه‌سازی سیستم
-          sudo pacstrap -G -M -C /etc/pacman.conf ~/zenora-rootfs base curl wget vim nano sudo texinfo man-db man-pages zsh shadow \
-          base bash coreutils file sed tar zstd \
-          pacman linux-aarch64 linux-firmware
-          
-          arch-chroot ~/zenora-rootfs locale-gen
+          sudo pacstrap -G -M -C /etc/pacman.conf "$ROOTFS_DIR" \
+          base curl wget nano sudo texinfo man-db man-pages zsh shadow \
+          bash coreutils file sed tar zstd pacman linux-aarch64
+
+          sudo sed -i 's/^#en_US.UTF-8/en_US.UTF-8/' "$ROOTFS_DIR"/etc/locale.gen
+          arch-chroot "$ROOTFS_DIR" locale-gen
           sudo rm -rf "$ROOTFS_DIR"/var/cache/pacman/pkg/*
 
           # فشرده‌سازی rootfs
           cd "$ROOTFS_DIR"
-          tar -czvf /output/zenroalinux-arm64-rootfs.tar.gz .
+          tar -czvf  ~/zenroalinux-arm64-rootfs.tar.gz .
 
     # آپلود rootfs به عنوان آرتیفکت
       - name: Upload RootFS artifact
