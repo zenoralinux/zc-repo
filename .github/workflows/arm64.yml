@@ -1,5 +1,5 @@
 name: zenora ARM64 AUR Repository Builder
- 
+
 on:
   push:
     branches: [ main ]
@@ -30,7 +30,7 @@ jobs:
          shell: bash
          run: |
           set -e
-          
+
           # نصب پیش‌نیازها
           pacman -Syu --noconfirm --needed arch-install-scripts pacman-contrib wget curl base-devel zsh shadow tar gzip gnupg archlinux-keyring base debootstrap e2fsprogs sudo
 
@@ -38,10 +38,15 @@ jobs:
           ROOTFS_DIR="$HOME/zenora-rootfs"
           mkdir -p "$ROOTFS_DIR"
 
+          # ایجاد دایرکتوری‌های لازم برای جلوگیری از خطا
+          mkdir -p "$ROOTFS_DIR/mnt/sys-root"
+          mkdir -p "$ROOTFS_DIR/run/systemd/system"
+          mount --bind /run/systemd/system "$ROOTFS_DIR/run/systemd/system"
+
           # پایه‌سازی سیستم
           pacstrap -G -M -C /etc/pacman.conf -K /mnt/sys-root base curl wget vim nano sudo texinfo man-db man-pages zsh shadow \
           base bash coreutils file sed tar zstd \
-          pacman linux-aarch64 linux-firmware \ --cachedir ./pkg-cache
+          pacman linux-aarch64 linux-firmware --cachedir ./pkg-cache
 
           echo "zenora" | sudo tee "$ROOTFS_DIR"/etc/hostname
           echo "LANG=en_US.UTF-8" | sudo tee "$ROOTFS_DIR"/etc/locale.conf
