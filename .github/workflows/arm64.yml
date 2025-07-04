@@ -11,59 +11,59 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    # مرحله 0: فعال‌سازی QEMU برای پشتیبانی از معماری ARM64
+      # مرحله 0: فعال‌سازی QEMU برای پشتیبانی از معماری ARM64
       - name: Enable QEMU for aarch64
         uses: docker/setup-qemu-action@v3
         with:
           platforms: all
 
-    # مرحله 1: دریافت سورس مخزن اصلی GitHub
+      # مرحله 1: دریافت سورس مخزن اصلی GitHub
       - name: Checkout repository
         uses: actions/checkout@v4
 
-    # مرحله 2: ساخت بسته‌های AUR در کانتینر ARM64 با QEMU
+      # مرحله 2: ساخت بسته‌های AUR در کانتینر ARM64 با QEMU
       - name: Build ARM64 packages in container
         uses: addnab/docker-run-action@v3
         with:
-         image: ghcr.io/fwcd/archlinux:latest
-         options: --platform linux/arm64 --privileged
-         shell: bash
-         run: |
-          set -e
+          image: ghcr.io/fwcd/archlinux:latest
+          options: --platform linux/arm64 --privileged
+          shell: bash
+          run: |
+            set -e
 
-          # نصب پیش‌نیازها
-          pacman -Syu --noconfirm --needed arch-install-scripts pacman-contrib wget curl base-devel sudo
-          ROOTFS_DIR=~/zenora-rootfs
-          # ایجاد دایرکتوری rootfs
-          mkdir -p ~/zenora-rootfs
-         
-          # پایه‌سازی سیستم
-          sudo pacstrap -G -M -C /etc/pacman.conf "$ROOTFS_DIR" \
-          base curl wget nano sudo texinfo man-db man-pages zsh shadow \
-          bash coreutils file sed tar zstd pacman 
+            # نصب پیش‌نیازها
+            pacman -Syu --noconfirm --needed arch-install-scripts pacman-contrib wget curl base-devel sudo
 
-          sudo sed -i 's/^#en_US.UTF-8/en_US.UTF-8/' "$ROOTFS_DIR"/etc/locale.gen
-          arch-chroot "$ROOTFS_DIR" locale-gen
+            # ایجاد دایرکتوری rootfs
+            ROOTFS_DIR=~/zenora-rootfs
+            mkdir -p "$ROOTFS_DIR"
 
-          
-            # set zsh globally
-          echo "/bin/zsh" >> "$ROOTFS_DIR"/etc/shells
-          echo "SHELL=/bin/zsh" >> "$ROOTFS_DIR"/etc/environment
-          sed -i 's|^SHELL=.*|SHELL=/bin/zsh|' "$ROOTFS_DIR"/etc/default/useradd
-         
-          # make zsh default for root
-          sed -i 's|^\(root:[^:]*:[^:]*:[^:]*:[^:]*:[^:]*:\).*|\1/bin/zsh|' "$ROOTFS_DIR"/etc/passwd
-          cp "$ROOTFS_DIR"/etc/skel/.bashrc "$ROOTFS_DIR"/etc/skel/.zshrc 2>/dev/null || true
-          touch "$ROOTFS_DIR"/etc/skel/.zshrc
+            # نصب سیستم پایه
+            sudo pacstrap -G -M -C /etc/pacman.conf "$ROOTFS_DIR" \
+              base curl wget nano sudo texinfo man-db man-pages zsh shadow \
+              bash coreutils file sed tar zstd pacman 
 
+            # تنظیمات locale
+            sudo sed -i 's/^#en_US.UTF-8/en_US.UTF-8/' "$ROOTFS_DIR"/etc/locale.gen
+            arch-chroot "$ROOTFS_DIR" locale-gen
 
-          # فشرده‌سازی rootfs
-          sudo rm -rf "$ROOTFS_DIR"/var/cache/pacman/pkg/*
-          tar -czvf "$HOME/zenroalinux-arm64-rootfs.tar.gz" -C "$ROOTFS_DIR" .
-            ls -lh "$HOME/zenroalinux-arm64-rootfs.tar.gz"
+            # تنظیم zsh به عنوان شل پیش‌فرض
+            echo "/bin/zsh" >> "$ROOTFS_DIR"/etc/shells
+            echo "SHELL=/bin/zsh" >> "$ROOTFS_DIR"/etc/environment
+            sed -i 's|^SHELL=.*|SHELL=/bin/zsh|' "$ROOTFS_DIR"/etc/default/useradd
+            sed -i 's|^\(root:[^:]*:[^:]*:[^:]*:[^:]*:[^:]*:\).*|\1/bin/zsh|' "$ROOTFS_DIR"/etc/passwd
+            cp "$ROOTFS_DIR"/etc/skel/.bashrc "$ROOTFS_DIR"/etc/skel/.zshrc 2>/dev/null || true
+            touch "$ROOTFS_DIR"/etc/skel/.zshrc
 
+            # پاک‌سازی کش و ساخت فایل rootfs
+            sudo rm -rf "$ROOTFS_DIR"/var/cache/pacman/pkg/*
+            OUTPUT_FILE=$GITHUB_WORKSPACE/zenroalinux-arm64-rootfs.tar.gz
+            tar -czvf "$OUTPUT_FILE" -C "$ROOTFS_DIR" .
+            ls -lh "$OUTPUT_FILE"
+
+      # مرحله 3: آپلود فایل rootfs ساخته‌شده
       - name: Upload RootFS artifact
         uses: actions/upload-artifact@v4
         with:
-         name: zenroalinux-arm64-rootfs
-         path: $HOME/zenroalinux-arm64-rootfs.tar.gz
+          name: zenroalinux-arm64-rootfs
+          path: ${{ github.workspace }}/zenroalinux-arm64-rootfs.tar.gz
