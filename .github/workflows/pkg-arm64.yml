@@ -1,0 +1,52 @@
+name: zenora ARM64 AUR Repository Builder
+
+on:
+  push:
+    branches: [ main ]
+  schedule:
+    - cron: '0 3 * * *'  # اجرای روزانه ساعت 03:00 UTC
+
+jobs:
+  build-arm64:
+    runs-on: ubuntu-latest
+
+    steps:
+      # مرحله 0: فعال‌سازی QEMU برای معماری‌های دیگر
+      - name: Enable QEMU for aarch64
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: all
+
+      # مرحله 1: کلون مخزن فعلی
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # مرحله 2: ساخت RootFS در container با QEMU و mount workspace
+      - name: Build ARM64 RootFS in container
+        uses: addnab/docker-run-action@v3
+        with:
+          image: ghcr.io/fwcd/archlinux:latest
+          options: --platform linux/arm64 --privileged -v ${{ github.workspace }}:/output
+          shell: bash
+          run: |
+            set -e
+
+            # نصب ابزارهای مورد نیاز
+            pacman -Syu --noconfirm --needed 
+            sudo pacman -S --needed base-devel git rust
+            git clone https://aur.archlinux.org/paru.git
+            cd paru
+            makepkg -si
+            sudo -u builder paru --mflags="--skippgpcheck" --clonedir /tmp -S --noconfirm zsh-theme-powerlevel10k
+
+
+            # ساخت فایل فشرده در مسیر mount شده workspace
+            tar -czvf /output/zenroalinux-arm64-rootfs.tar.gz -C "$ROOTFS_DIR" .
+            ls -lh /output/zenroalinux-arm64-rootfs.tar.gz
+
+      # مرحله 3: آپلود فایل rootfs به عنوان artifact
+      - name: Upload RootFS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: zenroalinux-arm64-rootfs
+          path: ${{ github.workspace }}/zenroalinux-arm64-rootfs.tar.gz
