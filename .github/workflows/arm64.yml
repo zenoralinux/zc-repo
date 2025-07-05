@@ -44,7 +44,8 @@ jobs:
 
             sudo pacstrap -G -M -C /etc/pacman.conf "$ROOTFS_DIR" \
               base curl wget nano sudo texinfo man-db man-pages zsh shadow \
-              bash coreutils file sed tar zstd pacman zenora-release zrepo/neofetch
+              bash coreutils file sed tar zstd pacman zenora-release zrepo/neofetch zenora-conf-update \
+              zenora-fake-apt zenora-back zenora-conf-update
 
             # تنظیم locale
             sudo sed -i 's/^#en_US.UTF-8/en_US.UTF-8/' "$ROOTFS_DIR"/etc/locale.gen
