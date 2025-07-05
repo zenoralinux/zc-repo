@@ -29,11 +29,13 @@ jobs:
             set -eux
             pacman -Syu --noconfirm
             pacman -S --noconfirm sudo git base-devel wget
+
+            wget https://github.com/Morganamilo/paru/releases/download/v2.0.4/paru-v2.0.4-aarch64.tar.zst
+            pacman -U ./paru-v2.0.4-aarch64.tar.zst --noconfirm
+            
             useradd -m builder
             echo "builder ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
             su - builder -c '
-             wget https://github.com/Morganamilo/paru/releases/download/v2.0.4/paru-v2.0.4-aarch64.tar.zst
-              pacman -U ./paru-v2.0.4-aarch64.tar.zst --noconfirm
               paru --noconfirm --mflags="--skippgpcheck" --clonedir /tmp -S zsh-theme-powerlevel10k
             '
             mkdir -p /output/pkgs
