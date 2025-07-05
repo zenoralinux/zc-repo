@@ -64,6 +64,11 @@ jobs:
           # mv zc-repo.db.tar.gz zc-repo.db
 
           # cd ../../
+          # پاکسازی توکن
+          CLEAN_TOKEN=$(echo "$CODEBERG_TOKEN" | tr -d '\n\r\t ')
+
+          # Push به Codeberg
+          git remote set-url origin "https://${CODEBERG_USER}:${CLEAN_TOKEN}@codeberg.org/${CODEBERG_USER}/zc-repo.git"
           git add .
           git commit -m "Automated update: $(date +'%Y-%m-%d %H:%M:%S')" || echo "No changes to commit"
           git push origin main
