@@ -49,26 +49,37 @@ jobs:
             
             sudo pacstrap -G -M -C /etc/pacman.conf "$ROOTFS_DIR" \
               base curl wget nano sudo texinfo man-db man-pages zsh shadow \
-              bash coreutils file sed tar zstd pacman zenora-release zrepo/neofetch zenora-conf-update \
+              bash coreutils file sed tar zstd pacman zenora-release zrepo/neofetch zenora-zsh-configconf-update \
               zenora-fake-apt zenora-back zenora-conf-update
 
             # تنظیم locale
             sudo sed -i 's/^#en_US.UTF-8/en_US.UTF-8/' "$ROOTFS_DIR"/etc/locale.gen
             arch-chroot "$ROOTFS_DIR" locale-gen
+            
+            # Create user zenora with zsh
+            arch-chroot "$ROOTFS_DIR" useradd -m -G wheel -s /bin/zsh zenora
+            echo 'zenora:zenora' | arch-chroot "$ROOTFS_DIR" chpasswd
+            echo '%wheel ALL=(ALL:ALL) NOPASSWD: ALL' >> "$ROOTFS_DIR/etc/sudoers"
 
             # تنظیم zsh به عنوان شل پیش‌فرض
             sed -i 's|^SHELL=.*|SHELL=/bin/zsh|' "$ROOTFS_DIR"/etc/default/useradd
             touch "$ROOTFS_DIR"/etc/skel/.zshrc
+            
             # resolve dns config
             echo "nameserver 1.1.1.1" > "$ROOTFS_DIR"/etc/resolv.conf
+            
             # کپی کردن پکمن اصلی 
             cp /etc/pacman.conf "$ROOTFS_DIR"/etc/pacman.conf
+            
             # حذف کش بسته‌ها
             sudo rm -rf "$ROOTFS_DIR"/var/cache/pacman/pkg/*
+            
             #حذف پیغام land lock
             echo "PACMAN_IGNORE_LANDLOCK=1" >> "$ROOTFS_DIR"/etc/environment
+            
             #حل مشکل ارور های پرمیشن
             find "$ROOTFS_DIR" -type d -exec chmod 755 {} \; 2>/dev/null
+            
             # ساخت فایل فشرده در مسیر mount شده workspace
             tar -czvf /output/zenroalinux-arm64-rootfs.tar.gz -C "$ROOTFS_DIR" .
             ls -lh /output/zenroalinux-arm64-rootfs.tar.gz
