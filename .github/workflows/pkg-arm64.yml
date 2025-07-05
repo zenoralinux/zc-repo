@@ -66,10 +66,10 @@ jobs:
           find ./pkgs -name "*any.pkg.tar.zst" -exec cp -f {} existing_repo/zcrepo/aarch64/ \;
 
           cd existing_repo/zcrepo/aarch64
-          rm -f zc-repo.db* zc-repo.files*
-          repo-add zc-repo.db.tar.gz *.pkg.tar.zst
-          mv zc-repo.files.tar.gz zc-repo.files
-          mv zc-repo.db.tar.gz zc-repo.db
+          # rm -f zc-repo.db* zc-repo.files*
+          # repo-add zc-repo.db.tar.gz *.pkg.tar.zst
+          # mv zc-repo.files.tar.gz zc-repo.files
+          # mv zc-repo.db.tar.gz zc-repo.db
 
           cd ../../
           git add .
