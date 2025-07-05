@@ -57,13 +57,13 @@ jobs:
           sudo find /tmp -name "*aarch64.pkg.tar.zst" -exec cp -f {} existing_repo/zcrepo/aarch64/ \;
           sudo find /tmp -name "*any.pkg.tar.zst" -exec cp -f {} existing_repo/zcrepo/aarch64/ \;
 
-          # cd existing_repo/zcrepo/aarch64
+          cd existing_repo/zcrepo/aarch64
           # rm -f zc-repo.db* zc-repo.files*
           # repo-add zc-repo.db.tar.gz *.pkg.tar.zst
           # mv zc-repo.files.tar.gz zc-repo.files
           # mv zc-repo.db.tar.gz zc-repo.db
 
-          # cd ../../
+          cd ../../
           # پاکسازی توکن
           CLEAN_TOKEN=$(echo "$CODEBERG_TOKEN" | tr -d '\n\r\t ')
 
