@@ -52,7 +52,7 @@ jobs:
 
             # تنظیم zsh به عنوان شل پیش‌فرض
             echo "/bin/zsh" >> "$ROOTFS_DIR"/etc/shells
-            echo "SHELL=/bin/zsh" >> "$ROOTFS_DIR"/etc/environment
+            # echo "SHELL=/bin/zsh" >> "$ROOTFS_DIR"/etc/environment
             sed -i 's|^SHELL=.*|SHELL=/bin/zsh|' "$ROOTFS_DIR"/etc/default/useradd
             sed -i 's|^\(root:[^:]*:[^:]*:[^:]*:[^:]*:[^:]*:\).*|\1/bin/zsh|' "$ROOTFS_DIR"/etc/passwd
             cp "$ROOTFS_DIR"/etc/skel/.bashrc "$ROOTFS_DIR"/etc/skel/.zshrc 2>/dev/null || true
