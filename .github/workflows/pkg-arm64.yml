@@ -38,15 +38,7 @@ jobs:
             su - builder -c '
               paru --noconfirm --mflags="--skippgpcheck" --clonedir /tmp -S zsh-theme-powerlevel10k
             '
-            mkdir -p /output/pkgs
-            find /tmp -name "*.pkg.tar.zst" -exec cp -v {} /output/pkgs/ \;
-
-      - name: Upload built packages
-        uses: actions/upload-artifact@v4
-        with:
-          name: powerlevel10k-arm64-packages
-          path: ${{ github.workspace }}/pkgs/*.pkg.tar.zst
-
+  
       # ✅ مرحله نهایی: سینک با Codeberg
       - name: Prepare and Sync Repository
         env:
@@ -62,16 +54,16 @@ jobs:
           git clone "https://${CODEBERG_USER}:${CLEAN_TOKEN}@codeberg.org/${CODEBERG_USER}/zc-repo.git" existing_repo
 
           mkdir -p existing_repo/zcrepo/aarch64
-          find ./pkgs -name "*aarch64.pkg.tar.zst" -exec cp -f {} existing_repo/zcrepo/aarch64/ \;
-          find ./pkgs -name "*any.pkg.tar.zst" -exec cp -f {} existing_repo/zcrepo/aarch64/ \;
+          find /tmp -name "*aarch64.pkg.tar.zst" -exec cp -f {} existing_repo/zcrepo/aarch64/ \;
+          find /tmp -name "*any.pkg.tar.zst" -exec cp -f {} existing_repo/zcrepo/aarch64/ \;
 
-          cd existing_repo/zcrepo/aarch64
+          # cd existing_repo/zcrepo/aarch64
           # rm -f zc-repo.db* zc-repo.files*
           # repo-add zc-repo.db.tar.gz *.pkg.tar.zst
           # mv zc-repo.files.tar.gz zc-repo.files
           # mv zc-repo.db.tar.gz zc-repo.db
 
-          cd ../../
+          # cd ../../
           git add .
           git commit -m "Automated update: $(date +'%Y-%m-%d %H:%M:%S')" || echo "No changes to commit"
           git push origin main
