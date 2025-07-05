@@ -30,7 +30,7 @@ jobs:
             pacman -Syu --noconfirm
             pacman -S --noconfirm sudo git base-devel wget
 
-            wget https://github.com/Morganamilo/paru/releases/download/v2.0.4/paru-v2.0.4-aarch64.tar.zst
+            wget https://repo.archlinuxcn.org/aarch64/paru-git-2.0.4.r63.g5bca838-1-aarch64.pkg.tar.zst
             pacman -U ./paru-v2.0.4-aarch64.tar.zst --noconfirm
             
             useradd -m builder
