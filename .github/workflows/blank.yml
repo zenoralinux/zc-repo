@@ -65,6 +65,8 @@ jobs:
         sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" brave-bin
         sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" edex-ui-bin
         sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" zen-browser-bin
+        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" ttf-meslo-nerd-font-powerlevel10k
+        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" zsh-theme-powerlevel10k
 
         # ساخت بسته calamares
         sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" ckbcomp
