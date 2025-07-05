@@ -60,7 +60,7 @@ jobs:
             # حذف کش بسته‌ها
             sudo rm -rf "$ROOTFS_DIR"/var/cache/pacman/pkg/*
             #حذف پیغام land lock
-            echo "PACMAN_IGNORE_LANDLOCK=1" >> /mnt/sys-root/etc/environment
+            echo "PACMAN_IGNORE_LANDLOCK=1" >> "$ROOTFS_DIR"/etc/environment
             #حل مشکل ارور های پرمیشن
             find "$ROOTFS_DIR" -type d -exec chmod 755 {} \; 2>/dev/null
             # ساخت فایل فشرده در مسیر mount شده workspace
