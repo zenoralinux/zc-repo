@@ -41,7 +41,12 @@ jobs:
             [zrepo]\
             SigLevel = Never\
             Server = https://codeberg.org/zenoralinux/zenora-repo/raw/branch/main/$arch' /etc/pacman.conf
-
+             
+            sed -i '/^\[core\]/i\
+            [zc-repo]\
+            SigLevel = Never\
+            Server = https://codeberg.org/zenoralinux/zc-repo/raw/branch/main/zcrepo/$arch' /etc/pacman.conf
+            
             sudo pacstrap -G -M -C /etc/pacman.conf "$ROOTFS_DIR" \
               base curl wget nano sudo texinfo man-db man-pages zsh shadow \
               bash coreutils file sed tar zstd pacman zenora-release zrepo/neofetch zenora-conf-update \
