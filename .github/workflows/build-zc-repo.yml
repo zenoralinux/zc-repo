@@ -8,7 +8,6 @@ on:
 
 env:
   CODEBERG_USER: zenoralinux
-  CLEAN_TOKEN: ${{ secrets.CODEBERG_TOKEN }}
 
 jobs:
 
@@ -100,7 +99,9 @@ jobs:
         run: |
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
-          git clone "https://${{ env.CODEBERG_USER }}:${{ env.CLEAN_TOKEN }}@codeberg.org/${{ env.CODEBERG_USER }}/zc-repo.git" existing_repo
+
+          CLEAN_TOKEN=$(echo "${{ secrets.CODEBERG_TOKEN }}" | tr -d '\n\r')
+          git clone "https://${{ env.CODEBERG_USER }}:${CLEAN_TOKEN}@codeberg.org/${{ env.CODEBERG_USER }}/zc-repo.git" existing_repo
 
       - name: Sync packages
         run: |
