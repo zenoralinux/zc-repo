@@ -78,8 +78,11 @@ jobs:
             echo "PACMAN_IGNORE_LANDLOCK=1" >> "$ROOTFS_DIR"/etc/environment
             
             #حل مشکل ارور های پرمیشن
-            find "$ROOTFS_DIR" -type d -exec chmod 755 {} \; 2>/dev/null
-            
+            find "$ROOTFS_DIR" -type d -exec chmod 755 {} \;
+            find "$ROOTFS_DIR" -type f -exec chmod 644 {} \;
+            chmod -R 755 "$ROOTFS_DIR"/usr/{bin,lib,libexec,sbin}
+            chmod -R 755 "$ROOTFS_DIR"/bin "$ROOTFS_DIR"/sbin
+         
             # ساخت فایل فشرده در مسیر mount شده workspace
             tar -czvf /output/zenroalinux-arm64-rootfs.tar.gz -C "$ROOTFS_DIR" .
             ls -lh /output/zenroalinux-arm64-rootfs.tar.gz
