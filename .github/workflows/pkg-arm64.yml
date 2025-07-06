@@ -28,7 +28,7 @@ jobs:
           run: |
             set -eux
             pacman -Syu --noconfirm
-            pacman -S --noconfirm sudo git base-devel wget archlinux-keyring cmake
+            pacman -S --noconfirm sudo git base-devel wget archlinux-keyring cmake zsh
 
             # wget https://repo.archlinuxcn.org/aarch64/paru-git-2.0.4.r63.g5bca838-1-aarch64.pkg.tar.zst
             # pacman -U ./paru-git-2.0.4.r63.g5bca838-1-aarch64.pkg.tar.zst --noconfirm
