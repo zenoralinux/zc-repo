@@ -36,11 +36,8 @@ jobs:
             useradd -m builder
             echo "builder ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
             su - builder -c '
-              # paru --noconfirm --mflags="--skippgpcheck" --clonedir /tmp -S zsh-theme-powerlevel10k
-            cd /tmp
-            git clone https://aur.archlinux.org/zsh-theme-powerlevel10k.git
-            cd ./zsh-theme-powerlevel10k
-            makepkg -sif
+            paru --noconfirm --mflags="--skippgpcheck" --clonedir /tmp -S zsh-theme-powerlevel10k
+          
             ls
             '
   
@@ -61,7 +58,7 @@ jobs:
           mkdir -p existing_repo/zcrepo/aarch64
           sudo find /tmp -name "*aarch64.pkg.tar.zst" -exec cp -f {} existing_repo/zcrepo/aarch64/ \;
           sudo find /tmp -name "*any.pkg.tar.zst" -exec cp -f {} existing_repo/zcrepo/aarch64/ \;
-
+          sudo find /tmp -name "*aarch64.pkg.tar.xz" -exec cp -f {} existing_repo/zcrepo/aarch64/ \;
           cd existing_repo/zcrepo/aarch64
           # rm -f zc-repo.db* zc-repo.files*
           # repo-add zc-repo.db.tar.gz *.pkg.tar.zst
