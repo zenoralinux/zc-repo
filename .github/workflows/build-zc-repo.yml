@@ -4,7 +4,7 @@ on:
   push:
     branches: [ main ]
   schedule:
-    - cron: '0 3 * * *'  # اجرای روزانه ساعت 03:00 UTC
+    - cron: '0 3 * * *'
 
 env:
   CODEBERG_USER: zenoralinux
@@ -46,6 +46,12 @@ jobs:
 
             mkdir -p /output/arm64
             find /tmp -name "*.pkg.tar.*" -exec cp -v {} /output/arm64/ \;
+
+      - name: Upload ARM64 artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: arm64-packages
+          path: arm64
 
   build-x86_64:
     runs-on: ubuntu-latest
@@ -90,11 +96,29 @@ jobs:
 
             find /tmp -name "*.pkg.tar.*" -exec cp -v {} /output/x86_64/ \;
 
+      - name: Upload x86_64 artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: x86_64-packages
+          path: x86_64
+
   sync-repo:
     needs: [build-arm64, build-x86_64]
     runs-on: ubuntu-latest
 
     steps:
+      - name: Download ARM64 packages
+        uses: actions/download-artifact@v4
+        with:
+          name: arm64-packages
+          path: ./arm64
+
+      - name: Download x86_64 packages
+        uses: actions/download-artifact@v4
+        with:
+          name: x86_64-packages
+          path: ./x86_64
+
       - name: Checkout clean repo
         run: |
           git config --global user.name "GitHub Actions"
@@ -108,12 +132,9 @@ jobs:
           set -eux
           mkdir -p existing_repo/zcrepo/{x86_64,aarch64}
 
-          # Copy x86_64
           find ./x86_64 -name "*.pkg.tar.zst" -exec cp -fv {} existing_repo/zcrepo/x86_64/ \;
-
-          # Copy aarch64
-          find ./arm64 -name "*aarch64.pkg.tar.zst" -exec cp -fv {} existing_repo/zcrepo/aarch64/ \;
-          find ./arm64 -name "*any.pkg.tar.zst"     -exec cp -fv {} existing_repo/zcrepo/aarch64/ \;
+          find ./arm64  -name "*aarch64.pkg.tar.zst" -exec cp -fv {} existing_repo/zcrepo/aarch64/ \;
+          find ./arm64  -name "*any.pkg.tar.zst"     -exec cp -fv {} existing_repo/zcrepo/aarch64/ \;
 
       - name: Generate repo databases
         run: |
