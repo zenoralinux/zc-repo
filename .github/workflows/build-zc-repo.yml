@@ -1,10 +1,10 @@
 name: zenora ARM64 and x86_64 AUR zc-repo Repository Builder
- 
+
 on:
   push:
     branches: [ main ]
   schedule:
-    - cron: '0 3 * * *'
+    - cron: '0 3 * * *'  # اجرای روزانه ساعت 03:00 UTC
 
 env:
   CODEBERG_USER: zenoralinux
@@ -55,40 +55,40 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install dependencies
-        run: |
-          pacman -Sy --noconfirm
-          pacman -Rdd --noconfirm systemd-sysvcompat || true
-          pacman -S --noconfirm base-devel git sudo wget pacman-contrib
+      - name: Build x86_64 packages
+        uses: addnab/docker-run-action@v3
+        with:
+          image: archlinux:latest
+          options: --privileged -v ${{ github.workspace }}:/output
+          shell: bash
+          run: |
+            set -eux
+            pacman -Sy --noconfirm
+            pacman -Rdd --noconfirm systemd-sysvcompat || true
+            pacman -S --noconfirm base-devel git sudo wget pacman-contrib
 
-      - name: Setup builder user
-        run: |
-          useradd -m builder
-          echo "builder ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
-          sudo -u builder git clone https://aur.archlinux.org/yay.git /tmp/yay
-          cd /tmp/yay
-          sudo -u builder makepkg -si --noconfirm --skippgpcheck
-          rm -rf /tmp/yay
+            useradd -m builder
+            echo "builder ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+            sudo -u builder git clone https://aur.archlinux.org/yay.git /tmp/yay
+            cd /tmp/yay
+            sudo -u builder makepkg -si --noconfirm --skippgpcheck
+            rm -rf /tmp/yay
 
-      - name: Build AUR packages
-        run: |
-          set -eux
-          cd "$GITHUB_WORKSPACE"
+            mkdir -p /output/x86_64
 
-          for pkg in \
-            carburetor bottles Packet google-chrome ascii-draw protonup-qt-bin hiddify-app-bin \
-            oblivion-desktop-bin heroic-games-launcher-bin brisk-bin microsoft-edge-stable-bin \
-            gopeed-bin materialgram-bin brave-bin edex-ui-bin zen-browser-bin \
-            ttf-meslo-nerd-font-powerlevel10k zsh-theme-powerlevel10k ckbcomp; do
-            sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" "$pkg"
-          done
+            for pkg in \
+              carburetor bottles Packet google-chrome ascii-draw protonup-qt-bin hiddify-app-bin \
+              oblivion-desktop-bin heroic-games-launcher-bin brisk-bin microsoft-edge-stable-bin \
+              gopeed-bin materialgram-bin brave-bin edex-ui-bin zen-browser-bin \
+              ttf-meslo-nerd-font-powerlevel10k zsh-theme-powerlevel10k ckbcomp; do
+              sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" "$pkg"
+            done
 
-          sudo -u builder git clone https://github.com/zenoralinux/calamares.git /tmp/calamares
-          cd /tmp/calamares
-          sudo -u builder makepkg -si --noconfirm --skippgpcheck
+            sudo -u builder git clone https://github.com/zenoralinux/calamares.git /tmp/calamares
+            cd /tmp/calamares
+            sudo -u builder makepkg -si --noconfirm --skippgpcheck
 
-          mkdir -p "$GITHUB_WORKSPACE/x86_64"
-          find /tmp -name "*.pkg.tar.*" -exec cp -v {} "$GITHUB_WORKSPACE/x86_64/" \;
+            find /tmp -name "*.pkg.tar.*" -exec cp -v {} /output/x86_64/ \;
 
   sync-repo:
     needs: [build-arm64, build-x86_64]
@@ -107,23 +107,23 @@ jobs:
           mkdir -p existing_repo/zcrepo/{x86_64,aarch64}
 
           # Copy x86_64
-          find ./x86_64 -name "*.pkg.tar.zst" -exec cp -fv {} existing_repo/zcrepo/x86_64/ \;
+          find ./x86_64 -name "*.pkg.tar.*" -exec cp -fv {} existing_repo/zcrepo/x86_64/ \;
 
           # Copy aarch64
-          find ./arm64 -name "*aarch64.pkg.tar.zst" -exec cp -fv {} existing_repo/zcrepo/aarch64/ \;
-          find ./arm64 -name "*any.pkg.tar.zst"     -exec cp -fv {} existing_repo/zcrepo/aarch64/ \;
+          find ./arm64 -name "*aarch64.pkg.tar.*" -exec cp -fv {} existing_repo/zcrepo/aarch64/ \;
+          find ./arm64 -name "*any.pkg.tar.*"     -exec cp -fv {} existing_repo/zcrepo/aarch64/ \;
 
       - name: Generate repo databases
         run: |
           cd existing_repo/zcrepo/x86_64
           rm -f zc-repo.db* zc-repo.files*
-          repo-add zc-repo.db.tar.gz *.pkg.tar.zst || true
+          repo-add zc-repo.db.tar.gz *.pkg.tar.* || true
           mv zc-repo.db.tar.gz zc-repo.db
           mv zc-repo.files.tar.gz zc-repo.files
 
           cd ../aarch64
           rm -f zc-repo.db* zc-repo.files*
-          repo-add zc-repo.db.tar.gz *.pkg.tar.zst || true
+          repo-add zc-repo.db.tar.gz *.pkg.tar.* || true
           mv zc-repo.db.tar.gz zc-repo.db
           mv zc-repo.files.tar.gz zc-repo.files
 
@@ -133,4 +133,3 @@ jobs:
           git add .
           git commit -m "Automated repo update: $(date +'%Y-%m-%d %H:%M:%S')" || echo "No changes"
           git push origin main
-
