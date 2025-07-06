@@ -49,7 +49,7 @@ jobs:
             
             sudo pacstrap -G -M -C /etc/pacman.conf "$ROOTFS_DIR" \
               base curl wget nano sudo texinfo man-db man-pages zsh shadow \
-              bash coreutils file sed tar zstd pacman zenora-release zrepo/neofetch zenora-zsh-configconf-update \
+              bash coreutils file sed tar zstd pacman zenora-release zrepo/neofetch zenora-zsh-config conf-update \
               zenora-fake-apt zenora-back zenora-conf-update
 
             # تنظیم locale
