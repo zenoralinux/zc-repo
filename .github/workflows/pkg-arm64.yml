@@ -28,10 +28,10 @@ jobs:
           run: |
             set -eux
             pacman -Syu --noconfirm
-            pacman -S --noconfirm sudo git base-devel wget archlinux-keyring cmake zsh
+            pacman -S --noconfirm sudo git base-devel wget archlinux-keyring cmake zsh pacman-contrib
 
-            # wget https://repo.archlinuxcn.org/aarch64/paru-git-2.0.4.r63.g5bca838-1-aarch64.pkg.tar.zst
-            # pacman -U ./paru-git-2.0.4.r63.g5bca838-1-aarch64.pkg.tar.zst --noconfirm
+            wget https://repo.archlinuxcn.org/aarch64/paru-git-2.0.4.r63.g5bca838-1-aarch64.pkg.tar.zst
+            pacman -U ./paru-git-2.0.4.r63.g5bca838-1-aarch64.pkg.tar.zst --noconfirm
             
             useradd -m builder
             echo "builder ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
@@ -60,10 +60,10 @@ jobs:
           sudo find /tmp -name "*any.pkg.tar.zst" -exec cp -f {} existing_repo/zcrepo/aarch64/ \;
           sudo find /tmp -name "*aarch64.pkg.tar.xz" -exec cp -f {} existing_repo/zcrepo/aarch64/ \;
           cd existing_repo/zcrepo/aarch64
-          # rm -f zc-repo.db* zc-repo.files*
-          # repo-add zc-repo.db.tar.gz *.pkg.tar.zst
-          # mv zc-repo.files.tar.gz zc-repo.files
-          # mv zc-repo.db.tar.gz zc-repo.db
+          rm -f zc-repo.db* zc-repo.files*
+          repo-add zc-repo.db.tar.gz *.pkg.tar.zst
+          mv zc-repo.files.tar.gz zc-repo.files
+          mv zc-repo.db.tar.gz zc-repo.db
 
           cd ../../
           # پاکسازی توکن
