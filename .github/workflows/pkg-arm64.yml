@@ -1,6 +1,6 @@
 name: zenora ARM64 AUR Repository Builder
 
-on:
+on: 
   push:
     branches: [ main ]
   schedule:
