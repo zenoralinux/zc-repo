@@ -36,43 +36,44 @@ jobs:
             useradd -m builder
             echo "builder ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
             su - builder -c '
-            paru --noconfirm --mflags="--skippgpcheck" --clonedir /tmp -S zsh-theme-powerlevel10k
-          
-            ls
+              paru --noconfirm --mflags="--skippgpcheck" --clonedir /tmp -S zsh-theme-powerlevel10k
             '
-  
-      # ✅ مرحله نهایی: سینک با Codeberg
-      - name: Prepare and Sync Repository
-        env:
-          CODEBERG_USER: zenoralinux
-          CODEBERG_TOKEN: ${{ secrets.CODEBERG_TOKEN }}
-        run: |
-          set -eux
-          CLEAN_TOKEN=$(echo "$CODEBERG_TOKEN" | tr -d '\n\r\t ')
-          git config --global user.name "GitHub Actions"
-          git config --global user.email "actions@github.com"
 
-          cd "$GITHUB_WORKSPACE"
-          git clone "https://${CODEBERG_USER}:${CLEAN_TOKEN}@codeberg.org/${CODEBERG_USER}/zc-repo.git" existing_repo
+            mkdir -p /output/packages
+            find /tmp -name "*.pkg.tar.*" -exec cp -v {} /output/packages/ \;
 
-          mkdir -p existing_repo/zcrepo/aarch64
-          sudo find /tmp -name "*aarch64.pkg.tar.zst" -exec cp -f {} existing_repo/zcrepo/aarch64/ \;
-          sudo find /tmp -name "*any.pkg.tar.zst" -exec cp -f {} existing_repo/zcrepo/aarch64/ \;
-          sudo find /tmp -name "*aarch64.pkg.tar.xz" -exec cp -f {} existing_repo/zcrepo/aarch64/ \;
-          cd existing_repo/zcrepo/aarch64
-          rm -f zc-repo.db* zc-repo.files*
-          repo-add zc-repo.db.tar.gz *.pkg.tar.zst
-          mv zc-repo.files.tar.gz zc-repo.files
-          mv zc-repo.db.tar.gz zc-repo.db
+      - name: Prepare and Sync Repository in Arch Container
+        uses: addnab/docker-run-action@v3
+        with:
+          image: archlinux:latest
+          options: -v ${{ github.workspace }}:/workspace
+          shell: bash
+          run: |
+            set -eux
+            pacman -Sy --noconfirm git pacman-contrib
 
-          cd ../../
-          # پاکسازی توکن
-          CLEAN_TOKEN=$(echo "$CODEBERG_TOKEN" | tr -d '\n\r\t ')
+            export CODEBERG_USER="zenoralinux"
+            export CLEAN_TOKEN="$(echo "${{ secrets.CODEBERG_TOKEN }}" | tr -d '\n\r\t ')"
 
-          # Push به Codeberg
-          git remote set-url origin "https://${CODEBERG_USER}:${CLEAN_TOKEN}@codeberg.org/${CODEBERG_USER}/zc-repo.git"
-          git add .
-          git commit -m "Automated update: $(date +'%Y-%m-%d %H:%M:%S')" || echo "No changes to commit"
-          git push origin main
+            git config --global user.name "GitHub Actions"
+            git config --global user.email "actions@github.com"
 
-          echo "Repository successfully synced!"
+            cd /workspace
+            rm -rf existing_repo
+            git clone "https://${CODEBERG_USER}:${CLEAN_TOKEN}@codeberg.org/${CODEBERG_USER}/zc-repo.git" existing_repo
+
+            mkdir -p existing_repo/zcrepo/aarch64
+            cp -v /workspace/packages/*.pkg.tar.* existing_repo/zcrepo/aarch64/
+
+            cd existing_repo/zcrepo/aarch64
+            rm -f zc-repo.db* zc-repo.files*
+            repo-add zc-repo.db.tar.gz *.pkg.tar.zst || repo-add zc-repo.db.tar.gz *.pkg.tar.xz
+            mv zc-repo.files.tar.gz zc-repo.files || true
+            mv zc-repo.db.tar.gz zc-repo.db || true
+
+            cd ../../
+            git add .
+            git commit -m "Automated update: $(date +'%Y-%m-%d %H:%M:%S')" || echo "No changes to commit"
+            git push origin main
+
+            echo "✅ Repository successfully synced!"
