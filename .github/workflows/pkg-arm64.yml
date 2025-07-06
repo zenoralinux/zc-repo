@@ -67,7 +67,7 @@ jobs:
 
             cd existing_repo/zcrepo/aarch64
             rm -f zc-repo.db* zc-repo.files*
-            repo-add zc-repo.db.tar.gz *.pkg.tar.zst || repo-add zc-repo.db.tar.gz *.pkg.tar.xz
+            repo-add zc-repo.db.tar.gz *.pkg.tar.* || repo-add zc-repo.db.tar.gz *.pkg.tar.*
             mv zc-repo.files.tar.gz zc-repo.files || true
             mv zc-repo.db.tar.gz zc-repo.db || true
 
