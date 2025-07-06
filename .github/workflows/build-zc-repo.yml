@@ -119,14 +119,27 @@ jobs:
             rm -rf existing_repo
             # git clone "https://${CODEBERG_USER}:${CLEAN_TOKEN}@codeberg.org/${CODEBERG_USER}/zc-repo.git" existing_repo
             
+            # کپی کردن فایل‌های جدید به مسیر جدید 
             mkdir -p existing_repo/zcrepo/aarch64
+            find /tmp -name "*.pkg.tar.zst" -exec cp -f {} existing_repo/zcrepo/x86_64/ \;
+            mkdir -p existing_repo/zcrepo/aarch64
+            find /tmp -name "*aarch64.pkg.tar.zst" -exec cp -f {} existing_repo/zcrepo/aarch64/ \;
+            find /tmp -name "*any.pkg.tar.zst" -exec cp -f {} existing_repo/zcrepo/aarch64/ \;
             cp -v /workspace/packages/*.pkg.tar.* existing_repo/zcrepo/aarch64/
 
-            cd existing_repo/zcrepo/aarch64
+            # ساخت دیتا بیس جدید x86_64
+            cd existing_repo/zcrepo/x86_64
             rm -f zc-repo.db* zc-repo.files*
-            repo-add zc-repo.db.tar.gz *.pkg.tar.* || repo-add zc-repo.db.tar.gz *.pkg.tar.*
-            mv zc-repo.files.tar.gz zc-repo.files || true
-            mv zc-repo.db.tar.gz zc-repo.db || true
+            repo-add zc-repo.db.tar.gz *.pkg.tar.zst
+            mv zc-repo.files.tar.gz zc-repo.files
+            mv zc-repo.db.tar.gz zc-repo.db
+            # ساخت دیتا بیس جدید aarch64
+            cd ..
+            cd ./aarch64
+            rm -f zc-repo.db* zc-repo.files*
+            repo-add zc-repo.db.tar.gz *.pkg.tar.*
+            mv zc-repo.files.tar.gz zc-repo.files
+            mv zc-repo.db.tar.gz zc-repo.db
 
             cd ../../
             git add .
