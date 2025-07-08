@@ -39,9 +39,7 @@ jobs:
       - name: Build AUR packages with paru
         run: |
 
-            su - builder -c '
-              paru --noconfirm --mflags="--skippgpcheck" --clonedir /tmp -S zsh-theme-powerlevel10k
-            '
+            sudo -u builder paru --noconfirm --mflags="--skippgpcheck" --clonedir /tmp -S zsh-theme-powerlevel10k
 
             mkdir -p /output/packages
             find /tmp -name "*.pkg.tar.*" -exec cp -v {} /output/packages/ \;
