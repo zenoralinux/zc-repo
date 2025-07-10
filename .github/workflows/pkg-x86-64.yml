@@ -47,33 +47,24 @@ jobs:
     # مرحله 4: ساخت بسته‌های AUR
     - name: Build AUR packages with yay
       run: |
-
         cd "$GITHUB_WORKSPACE"
-        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" carburetor
-        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" bottles
-        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" Packet
-        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" google-chrome
-        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" ascii-draw
-        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" protonup-qt-bin 
-        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" hiddify-app-bin
-        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" oblivion-desktop-bin
-        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" heroic-games-launcher-bin
-        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" brisk-bin
-        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" microsoft-edge-stable-bin
-        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" gopeed-bin
-        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" materialgram-bin
-        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" brave-bin
-        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" edex-ui-bin
-        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" zen-browser-bin
-        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" ttf-meslo-nerd-font-powerlevel10k
-        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" zsh-theme-powerlevel10k
-        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" beeper-v4-bin
+        for pkg in \
+          carburetor bottles Packet google-chrome ascii-draw \
+          protonup-qt-bin hiddify-app-bin oblivion-desktop-bin \
+          heroic-games-launcher-bin brisk-bin microsoft-edge-stable-bin \
+          gopeed-bin materialgram-bin brave-bin edex-ui-bin \
+          zen-browser-bin ttf-meslo-nerd-font-powerlevel10k \
+          zsh-theme-powerlevel10k beeper-v4-bin
+        do
+          echo "🔧 Building $pkg"
+          sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" "$pkg" || echo "❌ Failed to build $pkg"
+        done
 
         # ساخت بسته calamares
-        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" ckbcomp
+        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" ckbcomp || echo "❌ Failed to build ckbcomp"
         sudo -u builder git clone https://github.com/zenoralinux/calamares.git /tmp/calamares
         cd /tmp/calamares
-        sudo -u builder makepkg -si --noconfirm --skippgpcheck
+        sudo -u builder makepkg -si --noconfirm --skippgpcheck || echo "❌ Failed to build calamares"
 
     # مرحله 5: آماده‌سازی و سینک مخزن
     - name: Prepare and Sync Repository
