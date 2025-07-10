@@ -52,6 +52,10 @@ jobs:
     # مرحله 4: ساخت بسته‌های AUR
     - name: Build AUR packages with yay
       run: |
+        # دانلود بسته های  archliuxcn
+        pacman -Swdd archlinuxcn/proton-ge-custom-bin && cp /var/cache/pacman/pkg/proton-ge-custom-bin-*.pkg.tar.* /tmp/ || echo "❌ Failed to build calamares"
+        
+        # ساخت بسته های aur 
         cd "$GITHUB_WORKSPACE"
         for pkg in \
           carburetor bottles Packet google-chrome ascii-draw \
@@ -70,8 +74,6 @@ jobs:
         sudo -u builder git clone https://github.com/zenoralinux/calamares.git /tmp/calamares
         cd /tmp/calamares
         sudo -u builder makepkg -si --noconfirm --skippgpcheck || echo "❌ Failed to build calamares"
-        # دانلود بسته های  archliuxcn
-        pacman -Swdd archlinuxcn/proton-ge-custom-bin && cp /var/cache/pacman/pkg/proton-ge-custom-bin-*.pkg.tar.* /tmp/ || echo "❌ Failed to build calamares"
 
     # مرحله 5: آماده‌سازی و سینک مخزن
     - name: Prepare and Sync Repository
