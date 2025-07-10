@@ -19,6 +19,11 @@ jobs:
     # مرحله 2: تنظیم محیط ساخت
     - name: Setup build environment
       run: |
+       sed -i '/^\[core\]/i\
+       [archlinuxcn]\
+       SigLevel = Never\
+       Server = https://repo.archlinuxcn.org/$arch' /etc/pacman.conf
+
        pacman -Rdd --noconfirm systemd-sysvcompat || true
        pacman -Sy --noconfirm --needed git base-devel
        pacman -S --noconfirm --needed \
@@ -32,7 +37,7 @@ jobs:
        kconfig ki18n kservice kwidgetsaddons kpmcore \
        squashfs-tools rsync boost pybind11 doxygen \
        dmidecode gptfdisk hwinfo kparts polkit-qt6 \
-       solid qt6-tools libpwquality 
+       solid qt6-tools libpwquality archlinuxcn/proton-ge-custom-bin
 
     # مرحله 3: نصب yay
     - name: Install yay as builder user
@@ -66,6 +71,7 @@ jobs:
         cd /tmp/calamares
         sudo -u builder makepkg -si --noconfirm --skippgpcheck || echo "❌ Failed to build calamares"
 
+        cp /var/cache/pacman/pkg/proton-ge-custom-bin*.tar.zst /tmp
     # مرحله 5: آماده‌سازی و سینک مخزن
     - name: Prepare and Sync Repository
       env:
