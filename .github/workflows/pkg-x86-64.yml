@@ -37,7 +37,7 @@ jobs:
        kconfig ki18n kservice kwidgetsaddons kpmcore \
        squashfs-tools rsync boost pybind11 doxygen \
        dmidecode gptfdisk hwinfo kparts polkit-qt6 \
-       solid qt6-tools libpwquality archlinuxcn/proton-ge-custom-bin
+       solid qt6-tools libpwquality 
 
     # مرحله 3: نصب yay
     - name: Install yay as builder user
@@ -70,8 +70,9 @@ jobs:
         sudo -u builder git clone https://github.com/zenoralinux/calamares.git /tmp/calamares
         cd /tmp/calamares
         sudo -u builder makepkg -si --noconfirm --skippgpcheck || echo "❌ Failed to build calamares"
+        # دانلود بسته های  archliuxcn
+        pacman -Swdd archlinuxcn/proton-ge-custom-bin && cp /var/cache/pacman/pkg/proton-ge-custom-bin-*.pkg.tar.* /tmp/ || echo "❌ Failed to build calamares"
 
-        cp /var/cache/pacman/pkg/proton-ge-custom-bin*.tar.zst /tmp
     # مرحله 5: آماده‌سازی و سینک مخزن
     - name: Prepare and Sync Repository
       env:
