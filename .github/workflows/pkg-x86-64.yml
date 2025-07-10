@@ -1,4 +1,4 @@
-name: zenora Linux Repository Builder
+name: zenora Linux Repository x86_64 Builder
   
 on:
   push:
@@ -67,6 +67,7 @@ jobs:
         sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" zen-browser-bin
         sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" ttf-meslo-nerd-font-powerlevel10k
         sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" zsh-theme-powerlevel10k
+        sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" beeper-v4-bin
 
         # ساخت بسته calamares
         sudo -u builder yay -S --noconfirm --builddir=/tmp --mflags="--skippgpcheck" ckbcomp
