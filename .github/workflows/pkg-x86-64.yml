@@ -104,14 +104,14 @@ jobs:
         # ساخت دیتا بیس جدید x86_64
         cd existing_repo/zcrepo/x86_64
         rm -f zc-repo.db* zc-repo.files*
-        repo-add zc-repo.db.tar.gz *.pkg.tar.zst
+        repo-add zc-repo.db.tar.gz *.pkg.tar.*
         mv zc-repo.files.tar.gz zc-repo.files
         mv zc-repo.db.tar.gz zc-repo.db
         # ساخت دیتا بیس جدید aarch64
         cd ..
         cd ./aarch64
         rm -f zc-repo.db* zc-repo.files*
-        repo-add zc-repo.db.tar.gz *.pkg.tar.zst
+        repo-add zc-repo.db.tar.gz *.pkg.tar.*
         mv zc-repo.files.tar.gz zc-repo.files
         mv zc-repo.db.tar.gz zc-repo.db
 
