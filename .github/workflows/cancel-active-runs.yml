@@ -1,0 +1,57 @@
+name: Cancel All Active Workflow Runs
+
+on:
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  cancel-active-runs:
+    name: Cancel queued and in-progress runs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Cancel all active workflow runs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          CURRENT_RUN_ID: ${{ github.run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          echo "Finding queued and in-progress workflow runs in ${REPOSITORY}..."
+
+          runs_json="$(gh api --paginate "repos/${REPOSITORY}/actions/runs?per_page=100" \
+            --jq '.workflow_runs[] | select(.status == "queued" or .status == "in_progress") | .id')"
+
+          if [[ -z "${runs_json}" ]]; then
+            echo "No queued or in-progress workflow runs found."
+            exit 0
+          fi
+
+          cancelled=0
+          failed=0
+
+          while IFS= read -r run_id; do
+            [[ -n "${run_id}" ]] || continue
+
+            # Do not cancel this emergency workflow itself.
+            if [[ "${run_id}" == "${CURRENT_RUN_ID}" ]]; then
+              continue
+            fi
+
+            echo "Requesting cancellation of run ${run_id}..."
+
+            if gh api --silent -X POST \
+              "repos/${REPOSITORY}/actions/runs/${run_id}/cancel"; then
+              cancelled=$((cancelled + 1))
+            else
+              echo "::warning::Could not cancel run ${run_id}"
+              failed=$((failed + 1))
+            fi
+          done <<< "${runs_json}"
+
+          echo "Cancellation requests accepted: ${cancelled}"
+          echo "Cancellation requests failed: ${failed}"
