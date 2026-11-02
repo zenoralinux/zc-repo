@@ -43,8 +43,8 @@ _upstream_commit='2f2a376fdb2ad738bf55f693dd0b474b64bb0ab8'
 _font_commit='251aa5abd30496368f634e54ce2a508fe5a2fdfa'
 
 source=(
-  "dots-hyprland::git+https://github.com/end-4/dots-hyprland.git#commit=\${_upstream_commit}"
-  "google-sans-flex::git+https://github.com/end-4/google-sans-flex.git#commit=\${_font_commit}"
+  "dots-hyprland::git+https://github.com/end-4/dots-hyprland.git#commit=${_upstream_commit}"
+  "google-sans-flex::git+https://github.com/end-4/google-sans-flex.git#commit=${_font_commit}"
   'end4-install'
   "$pkgname.install"
 )
@@ -76,8 +76,8 @@ package() {
 
   cat > "$pkgdir/usr/share/end4-dots/BUILD_INFO" <<EOF
 upstream_repository=https://github.com/end-4/dots-hyprland
-upstream_commit=\${_upstream_commit}
-google_sans_flex_commit=\${_font_commit}
+upstream_commit=${_upstream_commit}
+google_sans_flex_commit=${_font_commit}
 architecture=x86_64
 EOF
 }
