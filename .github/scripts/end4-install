@@ -2,9 +2,9 @@
 set -Eeuo pipefail
 
 DATA_DIR="/usr/share/end4-dots"
-XDG_CONFIG_HOME="\${XDG_CONFIG_HOME:-$HOME/.config}"
-XDG_DATA_HOME="\${XDG_DATA_HOME:-$HOME/.local/share}"
-XDG_STATE_HOME="\${XDG_STATE_HOME:-$HOME/.local/state}"
+XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
+XDG_DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
+XDG_STATE_HOME="${XDG_STATE_HOME:-$HOME/.local/state}"
 VENV_DIR="$XDG_STATE_HOME/quickshell/.venv"
 BACKUP_ROOT="$HOME/ii-original-dots-backup/$(date -u +%Y%m%d-%H%M%S)"
 BACKUP_CREATED=false
@@ -214,7 +214,7 @@ if command -v systemctl >/dev/null 2>&1 && [[ -d /run/systemd/system ]]; then
         warn "bluetooth.service was not found; Bluetooth service setup was skipped."
     fi
 
-    if [[ -n "\${XDG_RUNTIME_DIR:-}" && -S "\${XDG_RUNTIME_DIR}/bus" ]] && \
+    if [[ -n "${XDG_RUNTIME_DIR:-}" && -S "${XDG_RUNTIME_DIR}/bus" ]] && \
        systemctl --user cat ydotool.service >/dev/null 2>&1; then
         systemctl --user enable --now ydotool.service || warn "Could not enable the ydotool user service."
     else
@@ -242,7 +242,7 @@ fi
 mkdir -p "$XDG_CONFIG_HOME/illogical-impulse"
 touch "$XDG_CONFIG_HOME/illogical-impulse/installed_true"
 
-if command -v hyprctl >/dev/null 2>&1 && [[ -n "\${HYPRLAND_INSTANCE_SIGNATURE:-}" ]]; then
+if command -v hyprctl >/dev/null 2>&1 && [[ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ]]; then
     hyprctl reload || warn "Hyprland reload failed; log out and back in to apply the new configuration."
 fi
 
