@@ -2,6 +2,12 @@ name: Build end-4 Installer Package
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - "packages/end4-dots-installer/**"
+      - ".github/workflows/build-end4-installer.yml"
 
 permissions:
   contents: write
@@ -48,6 +54,9 @@ jobs:
         shell: bash
         run: |
           PKGDIR="$GITHUB_WORKSPACE/packages/end4-dots-installer"
+          bash -n "$PKGDIR/end4-install"
+          bash -n "$PKGDIR/end4-dots-installer.install"
+          makepkg --printsrcinfo > /tmp/end4-installer.SRCINFO
           runuser -u builder -- env HOME=/home/builder USER=builder LOGNAME=builder \
             GITHUB_WORKSPACE="$GITHUB_WORKSPACE" \
             bash -c 'cd "$GITHUB_WORKSPACE/packages/end4-dots-installer" && makepkg --nodeps --cleanbuild --force --noconfirm'
