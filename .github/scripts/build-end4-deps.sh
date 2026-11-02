@@ -56,9 +56,6 @@ git clone --depth=1 "$UPSTREAM_REPO" "$UPSTREAM_DIR"
 UPSTREAM_COMMIT="$(git -C "$UPSTREAM_DIR" rev-parse HEAD)"
 echo "Upstream commit: $UPSTREAM_COMMIT"
 SHORT_SHA="${UPSTREAM_COMMIT:0:12}"
-if [[ -n "${GITHUB_OUTPUT:-}" ]]; then
-    printf "upstream_commit=%s\\nshort_sha=%s\\n" "$UPSTREAM_COMMIT" "$SHORT_SHA" >> "$GITHUB_OUTPUT"
-fi
 echo "::endgroup::"
 
 INSTALL_DEPS="$UPSTREAM_DIR/sdata/dist-arch/install-deps.sh"
