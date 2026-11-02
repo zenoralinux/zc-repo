@@ -1,0 +1,15 @@
+post_install() {
+  cat <<'EOF'
+end4-dots-installer has been installed.
+
+Run this command as your normal desktop user (do not use sudo):
+  end4-install
+
+Existing conflicting configuration will be backed up automatically.
+After installation, log out and back in to apply the new Hyprland setup.
+EOF
+}
+
+post_upgrade() {
+  post_install
+}
