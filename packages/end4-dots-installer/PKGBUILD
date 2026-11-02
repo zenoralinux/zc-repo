@@ -1,0 +1,84 @@
+# Maintainer: Zenora Linux
+pkgname=end4-dots-installer
+pkgver=20261103
+pkgrel=1
+pkgdesc="Independent installer and dotfiles package for end-4 Hyprland (Illogical Impulse)"
+arch=('x86_64')
+url="https://github.com/end-4/dots-hyprland"
+license=('GPL-3.0-only' 'OFL-1.1')
+depends=(
+  'bash'
+  'coreutils'
+  'curl'
+  'fontconfig'
+  'glib2'
+  'jq'
+  'rsync'
+  'sudo'
+  'systemd'
+  'uv'
+  'illogical-impulse-audio'
+  'illogical-impulse-backlight'
+  'illogical-impulse-basic'
+  'illogical-impulse-bibata-modern-classic-bin'
+  'illogical-impulse-fonts-themes'
+  'illogical-impulse-hyprland'
+  'illogical-impulse-kde'
+  'illogical-impulse-microtex-git'
+  'illogical-impulse-portal'
+  'illogical-impulse-python'
+  'illogical-impulse-quickshell-git'
+  'illogical-impulse-screencapture'
+  'illogical-impulse-toolkit'
+  'illogical-impulse-widgets'
+)
+makedepends=('git')
+optdepends=(
+  'kwrite: KDE configuration tools'
+  'gsettings-desktop-schemas: GNOME interface settings schema'
+)
+install="$pkgname.install"
+options=('!strip')
+
+_upstream_commit='2f2a376fdb2ad738bf55f693dd0b474b64bb0ab8'
+_font_commit='251aa5abd30496368f634e54ce2a508fe5a2fdfa'
+
+source=(
+  "dots-hyprland::git+https://github.com/end-4/dots-hyprland.git#commit=\${_upstream_commit}"
+  "google-sans-flex::git+https://github.com/end-4/google-sans-flex.git#commit=\${_font_commit}"
+  'end4-install'
+  "$pkgname.install"
+)
+sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP')
+
+prepare() {
+  cd "$srcdir/dots-hyprland"
+  git submodule update --init --recursive
+}
+
+package() {
+  install -d "$pkgdir/usr/share/end4-dots"
+  cp -a "$srcdir/dots-hyprland/dots" "$pkgdir/usr/share/end4-dots/"
+  install -Dm644 "$srcdir/dots-hyprland/sdata/uv/requirements.txt" \
+    "$pkgdir/usr/share/end4-dots/requirements.txt"
+
+  install -Dm755 "$srcdir/end4-install" "$pkgdir/usr/bin/end4-install"
+
+  install -Dm644 "$srcdir/dots-hyprland/LICENSE" \
+    "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+  install -Dm644 "$srcdir/google-sans-flex/LICENSE" \
+    "$pkgdir/usr/share/licenses/$pkgname/Google-Sans-Flex-LICENSE"
+
+  install -Dm644 "$srcdir/google-sans-flex/GoogleSansFlex-VariableFont_GRAD,ROND,opsz,slnt,wdth,wght.ttf" \
+    "$pkgdir/usr/share/fonts/TTF/GoogleSansFlex-VF.ttf"
+
+  install -Dm644 "$srcdir/dots-hyprland/.github/README.md" \
+    "$pkgdir/usr/share/doc/$pkgname/upstream-README.md"
+
+  cat > "$pkgdir/usr/share/end4-dots/BUILD_INFO" <<EOF
+upstream_repository=https://github.com/end-4/dots-hyprland
+upstream_commit=\${_upstream_commit}
+google_sans_flex_commit=\${_font_commit}
+architecture=x86_64
+EOF
+}
