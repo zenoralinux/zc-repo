@@ -161,6 +161,7 @@ fi
 {
     printf 'upstream_repository=%s\n' "$UPSTREAM_REPO"
     printf 'upstream_commit=%s\n' "$UPSTREAM_COMMIT"
+    printf 'short_sha=%s\n' "$SHORT_SHA"
     printf 'architecture=x86_64\n'
     printf 'built_at_utc=%s\n' "$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
     printf 'local_pkgbuild_count=%s\n' "${#PKGDIRS[@]}"
