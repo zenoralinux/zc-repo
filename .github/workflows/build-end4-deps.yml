@@ -5,6 +5,8 @@ on:
   schedule:
     - cron: "23 3 1 * *"
   push:
+    branches:
+      - main
     paths:
       - ".github/workflows/build-end4-deps.yml"
       - ".github/scripts/build-end4-deps.sh"
@@ -14,7 +16,7 @@ permissions:
 
 concurrency:
   group: end4-dependency-release
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   build:
