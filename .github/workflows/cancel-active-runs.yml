@@ -1,57 +1,66 @@
 name: Cancel All Active Workflow Runs
 
 on:
+  # Updating this workflow file starts the cleanup automatically.
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/cancel-active-runs.yml"
   workflow_dispatch:
 
 permissions:
   actions: write
   contents: read
 
+concurrency:
+  group: cancel-all-active-runs
+  cancel-in-progress: true
+
 jobs:
   cancel-active-runs:
-    name: Cancel queued and in-progress runs
+    name: Cancel every other queued or running workflow
     runs-on: ubuntu-latest
     steps:
-      - name: Cancel all active workflow runs
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REPOSITORY: ${{ github.repository }}
-          CURRENT_RUN_ID: ${{ github.run_id }}
-        shell: bash
-        run: |
-          set -euo pipefail
+      - name: Cancel all active workflow runs in this repository
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const currentRunId = context.runId;
 
-          echo "Finding queued and in-progress workflow runs in ${REPOSITORY}..."
+            const allRuns = await github.paginate(
+              github.rest.actions.listWorkflowRunsForRepo,
+              { owner, repo, per_page: 100 }
+            );
 
-          runs_json="$(gh api --paginate "repos/${REPOSITORY}/actions/runs?per_page=100" \
-            --jq '.workflow_runs[] | select(.status == "queued" or .status == "in_progress") | .id')"
+            const activeRuns = allRuns.filter(run =>
+              ["queued", "in_progress", "waiting", "pending", "requested"].includes(run.status) &&
+              run.id !== currentRunId
+            );
 
-          if [[ -z "${runs_json}" ]]; then
-            echo "No queued or in-progress workflow runs found."
-            exit 0
-          fi
+            core.info(`Found ${activeRuns.length} other active workflow runs.`);
 
-          cancelled=0
-          failed=0
+            let requested = 0;
+            let failed = 0;
 
-          while IFS= read -r run_id; do
-            [[ -n "${run_id}" ]] || continue
+            for (const run of activeRuns) {
+              try {
+                await github.rest.actions.cancelWorkflowRun({
+                  owner,
+                  repo,
+                  run_id: run.id
+                });
+                requested++;
+                core.info(`Cancellation requested: #${run.run_number} (ID ${run.id}) — ${run.name}`);
+              } catch (error) {
+                failed++;
+                core.warning(`Could not cancel run ID ${run.id}: ${error.message}`);
+              }
+            }
 
-            # Do not cancel this emergency workflow itself.
-            if [[ "${run_id}" == "${CURRENT_RUN_ID}" ]]; then
-              continue
-            fi
+            core.info(`Cancellation requests accepted: ${requested}`);
+            core.info(`Cancellation requests failed: ${failed}`);
 
-            echo "Requesting cancellation of run ${run_id}..."
-
-            if gh api --silent -X POST \
-              "repos/${REPOSITORY}/actions/runs/${run_id}/cancel"; then
-              cancelled=$((cancelled + 1))
-            else
-              echo "::warning::Could not cancel run ${run_id}"
-              failed=$((failed + 1))
-            fi
-          done <<< "${runs_json}"
-
-          echo "Cancellation requests accepted: ${cancelled}"
-          echo "Cancellation requests failed: ${failed}"
+            if (failed > 0) {
+              core.setFailed(`${failed} cancellation request(s) failed. Check permissions and logs.`);
+            }
