@@ -36,6 +36,7 @@ jobs:
         run: |
           chmod +x .github/scripts/build-end4-deps.sh
           .github/scripts/build-end4-deps.sh
+          grep -E '^(upstream_commit|short_sha)=' dist/BUILD_INFO >> "$GITHUB_OUTPUT"
 
       - name: Generate SHA256 checksums
         shell: bash
