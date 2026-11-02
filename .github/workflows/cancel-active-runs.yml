@@ -1,10 +1,6 @@
 name: Force Cancel All Active Workflow Runs
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - ".github/workflows/cancel-active-runs.yml"
   workflow_dispatch:
 
 permissions:
