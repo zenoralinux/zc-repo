@@ -1,0 +1,129 @@
+name: Build end-4 Installer Package
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: end4-installer-release
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build installer package (x86_64)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    container:
+      image: archlinux:base-devel
+    outputs:
+      pkgver: ${{ steps.build.outputs.pkgver }}
+      pkgrel: ${{ steps.build.outputs.pkgrel }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Prepare Arch build environment
+        shell: bash
+        run: |
+          pacman -Sy --noconfirm archlinux-keyring
+          pacman -Syu --noconfirm
+          pacman -S --needed --noconfirm git sudo shadow util-linux
+
+          id builder >/dev/null 2>&1 || useradd --create-home --shell /bin/bash builder
+          printf 'builder ALL=(ALL:ALL) NOPASSWD: ALL\n' > /etc/sudoers.d/builder
+          chmod 0440 /etc/sudoers.d/builder
+          visudo -cf /etc/sudoers.d/builder
+
+          mkdir -p "$GITHUB_WORKSPACE/dist"
+          chown -R builder:builder "$GITHUB_WORKSPACE/packages/end4-dots-installer"
+          chown -R builder:builder "$GITHUB_WORKSPACE/dist"
+          printf 'PKGDEST="%s/dist"\n' "$GITHUB_WORKSPACE" > /home/builder/.makepkg.conf
+          chown builder:builder /home/builder/.makepkg.conf
+
+      - name: Build PKGBUILD
+        id: build
+        shell: bash
+        run: |
+          PKGDIR="$GITHUB_WORKSPACE/packages/end4-dots-installer"
+          runuser -u builder -- env HOME=/home/builder USER=builder LOGNAME=builder \
+            GITHUB_WORKSPACE="$GITHUB_WORKSPACE" \
+            bash -c 'cd "$GITHUB_WORKSPACE/packages/end4-dots-installer" && makepkg --nodeps --cleanbuild --force --noconfirm'
+
+          shopt -s nullglob
+          packages=("$GITHUB_WORKSPACE"/dist/*.pkg.tar.zst)
+          if (( ${#packages[@]} == 0 )); then
+            echo "No package archive was produced." >&2
+            exit 1
+          fi
+
+          cp "$PKGDIR/PKGBUILD" "$GITHUB_WORKSPACE/dist/PKGBUILD"
+          cp "$PKGDIR/README.md" "$GITHUB_WORKSPACE/dist/README.md"
+          cd "$GITHUB_WORKSPACE/dist"
+          sha256sum *.pkg.tar.zst > SHA256SUMS
+
+          PKGVER="$(sed -n 's/^pkgver=//p' "$PKGDIR/PKGBUILD")"
+          PKGREL="$(sed -n 's/^pkgrel=//p' "$PKGDIR/PKGBUILD")"
+          [[ "$PKGVER" =~ ^[0-9][A-Za-z0-9._+]*$ ]]
+          [[ "$PKGREL" =~ ^[0-9]+$ ]]
+          {
+            echo "pkgver=$PKGVER"
+            echo "pkgrel=$PKGREL"
+          } >> "$GITHUB_OUTPUT"
+
+          ls -lh
+
+      - name: Upload package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: end4-dots-installer-x86_64
+          path: dist/
+          if-no-files-found: error
+          retention-days: 14
+
+  release:
+    name: Publish separate installer release
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+
+    steps:
+      - name: Download package artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: end4-dots-installer-x86_64
+          path: dist
+
+      - name: Verify checksums
+        shell: bash
+        run: |
+          cd dist
+          sha256sum -c SHA256SUMS
+
+      - name: Publish installer release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: end4-installer-${{ needs.build.outputs.pkgver }}-${{ needs.build.outputs.pkgrel }}
+          name: end4-dots-installer ${{ needs.build.outputs.pkgver }}-${{ needs.build.outputs.pkgrel }} (x86_64)
+          body: |
+            Standalone Arch Linux package for installing end-4 / Illogical Impulse dotfiles.
+
+            Prerequisite: install the separate dependency bundle first:
+            https://github.com/zenoralinux/zc-repo/releases/tag/end4-deps-2f2a376fdb2a
+
+            Install the package using pacman, then run end4-install as your normal user (without sudo).
+
+            Existing conflicting configuration is backed up automatically.
+
+            This package installs the selected upstream dotfiles snapshot and prepares the Quickshell Python environment, user groups, and available systemd services. It does not run upstream setup or dependency-install scripts, and it does not install GPU drivers or configure the display manager.
+
+            Upstream dotfiles commit: 2f2a376fdb2ad738bf55f693dd0b474b64bb0ab8
+          files: |
+            dist/*.pkg.tar.zst
+            dist/SHA256SUMS
+            dist/PKGBUILD
+            dist/README.md
+          fail_on_unmatched_files: true
+          make_latest: false
