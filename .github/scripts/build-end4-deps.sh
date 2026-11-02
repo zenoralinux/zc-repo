@@ -69,7 +69,7 @@ fi
 mapfile -t RELATIVE_PKGDIRS < <(
     {
         printf 'metapkgs=()\n'
-        grep -E '^metapkgs(\\+)?=\\(' "$INSTALL_DEPS" || true
+        grep -E '^metapkgs(\+)?=\(' "$INSTALL_DEPS" || true
         printf 'printf "%%s\\n" "${metapkgs[@]}"\n'
     } | bash
 )
