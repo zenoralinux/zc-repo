@@ -7,7 +7,7 @@ set -Eeuo pipefail
 
 UPSTREAM_REPO="https://github.com/end-4/dots-hyprland.git"
 UPSTREAM_DIR="/tmp/dots-hyprland"
-PKGDEST="/workspace/dist"
+PKGDEST="${GITHUB_WORKSPACE:-/workspace}/dist"
 AUR_BUILDER_REPO="https://aur.archlinux.org/yay-bin.git"
 
 if [[ "${1:-}" != "--build" ]]; then
@@ -18,7 +18,7 @@ if [[ "${1:-}" != "--build" ]]; then
 
     pacman -Sy --noconfirm archlinux-keyring
     pacman -Syu --noconfirm
-    pacman -S --needed --noconfirm base-devel git sudo
+    pacman -S --needed --noconfirm base-devel git sudo shadow util-linux
 
     id builder >/dev/null 2>&1 || useradd --create-home --shell /bin/bash builder
     printf 'builder ALL=(ALL:ALL) NOPASSWD: ALL\n' > /etc/sudoers.d/builder
@@ -55,6 +55,10 @@ echo "::group::Fetch end-4/dots-hyprland"
 git clone --depth=1 "$UPSTREAM_REPO" "$UPSTREAM_DIR"
 UPSTREAM_COMMIT="$(git -C "$UPSTREAM_DIR" rev-parse HEAD)"
 echo "Upstream commit: $UPSTREAM_COMMIT"
+SHORT_SHA="${UPSTREAM_COMMIT:0:12}"
+if [[ -n "${GITHUB_OUTPUT:-}" ]]; then
+    printf "upstream_commit=%s\\nshort_sha=%s\\n" "$UPSTREAM_COMMIT" "$SHORT_SHA" >> "$GITHUB_OUTPUT"
+fi
 echo "::endgroup::"
 
 INSTALL_DEPS="$UPSTREAM_DIR/sdata/dist-arch/install-deps.sh"
