@@ -56,7 +56,7 @@ jobs:
           PKGDIR="$GITHUB_WORKSPACE/packages/end4-dots-installer"
           bash -n "$PKGDIR/end4-install"
           bash -n "$PKGDIR/end4-dots-installer.install"
-          makepkg --printsrcinfo > /tmp/end4-installer.SRCINFO
+          bash -n "$PKGDIR/PKGBUILD"
           runuser -u builder -- env HOME=/home/builder USER=builder LOGNAME=builder \
             GITHUB_WORKSPACE="$GITHUB_WORKSPACE" \
             bash -c 'cd "$GITHUB_WORKSPACE/packages/end4-dots-installer" && makepkg --nodeps --cleanbuild --force --noconfirm'
