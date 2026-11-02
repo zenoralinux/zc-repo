@@ -1,7 +1,6 @@
 name: Force Cancel All Active Workflow Runs
 
 on:
-  # Updating this workflow file launches the cleanup automatically.
   push:
     branches: [main]
     paths:
@@ -44,19 +43,29 @@ jobs:
             let failed = 0;
 
             for (const run of activeRuns) {
-              try {
-                await github.request(
-                  "POST /repos/{owner}/{repo}/actions/runs/{run_id}/force-cancel",
-                  { owner, repo, run_id: run.id }
-                );
-                requested++;
-                core.info(`Force-cancel requested: #${run.run_number} (ID ${run.id}) — ${run.name}`);
-              } catch (error) {
-                if (error.status === 409) {
-                  core.warning(`Run ID ${run.id} is already transitioning or no longer cancellable.`);
-                } else {
-                  failed++;
-                  core.warning(`Could not force-cancel run ID ${run.id}: ${error.message}`);
+              let done = false;
+
+              for (let attempt = 1; attempt <= 4 && !done; attempt++) {
+                try {
+                  await github.request(
+                    "POST /repos/{owner}/{repo}/actions/runs/{run_id}/force-cancel",
+                    { owner, repo, run_id: run.id }
+                  );
+                  requested++;
+                  done = true;
+                  core.info(`Force-cancel accepted: #${run.run_number} (ID ${run.id}) — ${run.name}`);
+                } catch (error) {
+                  if (error.status === 409) {
+                    done = true;
+                    core.warning(`Run ID ${run.id} is already transitioning or no longer cancellable.`);
+                  } else if ((error.status >= 500 || !error.status) && attempt < 4) {
+                    core.warning(`Temporary error for run ID ${run.id}; retry ${attempt}/3: ${error.message}`);
+                    await new Promise(resolve => setTimeout(resolve, attempt * 3000));
+                  } else {
+                    failed++;
+                    core.warning(`Could not force-cancel run ID ${run.id}: ${error.message}`);
+                    done = true;
+                  }
                 }
               }
             }
