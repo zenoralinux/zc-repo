@@ -1,10 +1,11 @@
 name: zenora Linux Repository x86_64 Builder
   
 on:
-  push:
-    branches: [ main ]
-  schedule:
-    - cron: '0 0 * * *'  # روزانه اجرا شود
+  workflow_dispatch:
+
+concurrency:
+  group: zenora-aur-repository-builder
+  cancel-in-progress: true
 
 jobs:
   build-repo:
