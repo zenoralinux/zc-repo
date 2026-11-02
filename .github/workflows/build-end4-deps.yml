@@ -4,12 +4,6 @@ on:
   workflow_dispatch:
   schedule:
     - cron: "23 3 1 * *"
-  push:
-    branches:
-      - main
-    paths:
-      - ".github/workflows/build-end4-deps.yml"
-      - ".github/scripts/build-end4-deps.sh"
 
 permissions:
   contents: write
@@ -22,6 +16,7 @@ jobs:
   build:
     name: Build x86_64 Arch packages
     runs-on: ubuntu-24.04
+    timeout-minutes: 180
     container:
       image: archlinux:base-devel
 
@@ -60,6 +55,7 @@ jobs:
     name: Publish GitHub Release
     needs: build
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
 
     steps:
       - name: Download build output
