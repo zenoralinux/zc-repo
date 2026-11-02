@@ -42,7 +42,7 @@ done
 [[ -f /etc/arch-release ]] || die "An Arch Linux or Arch-based system is required."
 [[ -d "$DATA_DIR/dots/.config" ]] || die "Installed dotfiles are missing: $DATA_DIR/dots/.config"
 
-for cmd in sudo rsync uv python git; do
+for cmd in sudo rsync uv; do
     command -v "$cmd" >/dev/null 2>&1 || die "Required command '$cmd' is missing. Install the end-4 dependency release first."
 done
 
