@@ -1,7 +1,7 @@
-name: Cancel All Active Workflow Runs
+name: Force Cancel All Active Workflow Runs
 
 on:
-  # Updating this workflow file starts the cleanup automatically.
+  # Updating this workflow file launches the cleanup automatically.
   push:
     branches: [main]
     paths:
@@ -13,15 +13,15 @@ permissions:
   contents: read
 
 concurrency:
-  group: cancel-all-active-runs
+  group: force-cancel-all-active-runs
   cancel-in-progress: true
 
 jobs:
-  cancel-active-runs:
-    name: Cancel every other queued or running workflow
+  force-cancel-active-runs:
+    name: Force cancel every other queued or running workflow
     runs-on: ubuntu-latest
     steps:
-      - name: Cancel all active workflow runs in this repository
+      - name: Force cancel all active workflow runs in this repository
         uses: actions/github-script@v7
         with:
           script: |
@@ -45,22 +45,25 @@ jobs:
 
             for (const run of activeRuns) {
               try {
-                await github.rest.actions.cancelWorkflowRun({
-                  owner,
-                  repo,
-                  run_id: run.id
-                });
+                await github.request(
+                  "POST /repos/{owner}/{repo}/actions/runs/{run_id}/force-cancel",
+                  { owner, repo, run_id: run.id }
+                );
                 requested++;
-                core.info(`Cancellation requested: #${run.run_number} (ID ${run.id}) — ${run.name}`);
+                core.info(`Force-cancel requested: #${run.run_number} (ID ${run.id}) — ${run.name}`);
               } catch (error) {
-                failed++;
-                core.warning(`Could not cancel run ID ${run.id}: ${error.message}`);
+                if (error.status === 409) {
+                  core.warning(`Run ID ${run.id} is already transitioning or no longer cancellable.`);
+                } else {
+                  failed++;
+                  core.warning(`Could not force-cancel run ID ${run.id}: ${error.message}`);
+                }
               }
             }
 
-            core.info(`Cancellation requests accepted: ${requested}`);
-            core.info(`Cancellation requests failed: ${failed}`);
+            core.info(`Force-cancel requests accepted: ${requested}`);
+            core.info(`Force-cancel requests failed: ${failed}`);
 
             if (failed > 0) {
-              core.setFailed(`${failed} cancellation request(s) failed. Check permissions and logs.`);
+              core.setFailed(`${failed} force-cancel request(s) failed. Check permissions and logs.`);
             }
