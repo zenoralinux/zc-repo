@@ -22,10 +22,6 @@ jobs:
     runs-on: ubuntu-24.04
     container:
       image: archlinux:base-devel
-    outputs:
-      upstream_commit: ${{ steps.build.outputs.upstream_commit }}
-      short_sha: ${{ steps.build.outputs.short_sha }}
-
     steps:
       - name: Checkout Zenora package repository
         uses: actions/checkout@v4
@@ -36,7 +32,125 @@ jobs:
         run: |
           chmod +x .github/scripts/build-end4-deps.sh
           .github/scripts/build-end4-deps.sh
+          grep -Eq '^upstream_commit=[0-9a-f]{40}
+      - name: Generate SHA256 checksums
+        shell: bash
+        run: |
+          cd dist
+          find . -maxdepth 1 -type f -name '*.pkg.tar.zst' -printf '%f\n' \
+            | sort \
+            | xargs -r sha256sum > SHA256SUMS
+          test -s SHA256SUMS
+          echo "Packages built:"
+          ls -lh *.pkg.tar.zst
+
+      - name: Upload build output
+        uses: actions/upload-artifact@v4
+        with:
+          name: end4-hyprland-deps-x86_64
+          path: dist/
+          if-no-files-found: error
+          retention-days: 14
+
+  release:
+    name: Publish GitHub Release
+    needs: build
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Download build output
+        uses: actions/download-artifact@v4
+        with:
+          name: end4-hyprland-deps-x86_64
+          path: dist
+
+      - name: Read and validate release metadata
+        id: release_meta
+        shell: bash
+        run: |
           grep -E '^(upstream_commit|short_sha)=' dist/BUILD_INFO >> "$GITHUB_OUTPUT"
+          grep -Eq '^upstream_commit=[0-9a-f]{40}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: end4-deps-${{ steps.release_meta.outputs.short_sha }}
+          name: end-4 Hyprland dependencies (${{ steps.release_meta.outputs.short_sha }})
+          body: |
+            Prebuilt x86_64 Arch Linux packages for the dependency set currently referenced by [end-4/dots-hyprland](https://github.com/end-4/dots-hyprland).
+
+            Upstream commit: `${{ steps.release_meta.outputs.upstream_commit }}`
+
+            Includes AUR packages built while resolving the selected local PKGBUILDs, the local Illogical Impulse metapackages, build metadata, and SHA256 checksums.
+
+            Install on Arch Linux with:
+
+            ```bash
+            sudo pacman -U ./*.pkg.tar.zst
+            ```
+
+            This release is a convenience build, not an official release from the upstream project.
+          files: |
+            dist/*.pkg.tar.zst
+            dist/BUILD_INFO
+            dist/SHA256SUMS
+          fail_on_unmatched_files: true
+          make_latest: false
+ dist/BUILD_INFO
+          grep -Eq '^short_sha=[0-9a-f]{12}
+      - name: Generate SHA256 checksums
+        shell: bash
+        run: |
+          cd dist
+          find . -maxdepth 1 -type f -name '*.pkg.tar.zst' -printf '%f\n' \
+            | sort \
+            | xargs -r sha256sum > SHA256SUMS
+          test -s SHA256SUMS
+          echo "Packages built:"
+          ls -lh *.pkg.tar.zst
+
+      - name: Upload build output
+        uses: actions/upload-artifact@v4
+        with:
+          name: end4-hyprland-deps-x86_64
+          path: dist/
+          if-no-files-found: error
+          retention-days: 14
+
+  release:
+    name: Publish GitHub Release
+    needs: build
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Download build output
+        uses: actions/download-artifact@v4
+        with:
+          name: end4-hyprland-deps-x86_64
+          path: dist
+
+      - name: Publish packages
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: end4-deps-${{ steps.release_meta.outputs.short_sha }}
+          name: end-4 Hyprland dependencies (${{ steps.release_meta.outputs.short_sha }})
+          body: |
+            Prebuilt x86_64 Arch Linux packages for the dependency set currently referenced by [end-4/dots-hyprland](https://github.com/end-4/dots-hyprland).
+
+            Upstream commit: `${{ steps.release_meta.outputs.upstream_commit }}`
+
+            Includes AUR packages built while resolving the selected local PKGBUILDs, the local Illogical Impulse metapackages, build metadata, and SHA256 checksums.
+
+            Install on Arch Linux with:
+
+            ```bash
+            sudo pacman -U ./*.pkg.tar.zst
+            ```
+
+            This release is a convenience build, not an official release from the upstream project.
+          files: |
+            dist/*.pkg.tar.zst
+            dist/BUILD_INFO
+            dist/SHA256SUMS
+          fail_on_unmatched_files: true
+          make_latest: false
+ dist/BUILD_INFO
 
       - name: Generate SHA256 checksums
         shell: bash
@@ -71,12 +185,293 @@ jobs:
       - name: Publish packages
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: end4-deps-${{ needs.build.outputs.short_sha }}
-          name: end-4 Hyprland dependencies (${{ needs.build.outputs.short_sha }})
+          tag_name: end4-deps-${{ steps.release_meta.outputs.short_sha }}
+          name: end-4 Hyprland dependencies (${{ steps.release_meta.outputs.short_sha }})
           body: |
             Prebuilt x86_64 Arch Linux packages for the dependency set currently referenced by [end-4/dots-hyprland](https://github.com/end-4/dots-hyprland).
 
-            Upstream commit: `${{ needs.build.outputs.upstream_commit }}`
+            Upstream commit: `${{ steps.release_meta.outputs.upstream_commit }}`
+
+            Includes AUR packages built while resolving the selected local PKGBUILDs, the local Illogical Impulse metapackages, build metadata, and SHA256 checksums.
+
+            Install on Arch Linux with:
+
+            ```bash
+            sudo pacman -U ./*.pkg.tar.zst
+            ```
+
+            This release is a convenience build, not an official release from the upstream project.
+          files: |
+            dist/*.pkg.tar.zst
+            dist/BUILD_INFO
+            dist/SHA256SUMS
+          fail_on_unmatched_files: true
+          make_latest: false
+ dist/BUILD_INFO
+          grep -Eq '^short_sha=[0-9a-f]{12}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: end4-deps-${{ steps.release_meta.outputs.short_sha }}
+          name: end-4 Hyprland dependencies (${{ steps.release_meta.outputs.short_sha }})
+          body: |
+            Prebuilt x86_64 Arch Linux packages for the dependency set currently referenced by [end-4/dots-hyprland](https://github.com/end-4/dots-hyprland).
+
+            Upstream commit: `${{ steps.release_meta.outputs.upstream_commit }}`
+
+            Includes AUR packages built while resolving the selected local PKGBUILDs, the local Illogical Impulse metapackages, build metadata, and SHA256 checksums.
+
+            Install on Arch Linux with:
+
+            ```bash
+            sudo pacman -U ./*.pkg.tar.zst
+            ```
+
+            This release is a convenience build, not an official release from the upstream project.
+          files: |
+            dist/*.pkg.tar.zst
+            dist/BUILD_INFO
+            dist/SHA256SUMS
+          fail_on_unmatched_files: true
+          make_latest: false
+ dist/BUILD_INFO
+          grep -Eq '^short_sha=[0-9a-f]{12}
+      - name: Generate SHA256 checksums
+        shell: bash
+        run: |
+          cd dist
+          find . -maxdepth 1 -type f -name '*.pkg.tar.zst' -printf '%f\n' \
+            | sort \
+            | xargs -r sha256sum > SHA256SUMS
+          test -s SHA256SUMS
+          echo "Packages built:"
+          ls -lh *.pkg.tar.zst
+
+      - name: Upload build output
+        uses: actions/upload-artifact@v4
+        with:
+          name: end4-hyprland-deps-x86_64
+          path: dist/
+          if-no-files-found: error
+          retention-days: 14
+
+  release:
+    name: Publish GitHub Release
+    needs: build
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Download build output
+        uses: actions/download-artifact@v4
+        with:
+          name: end4-hyprland-deps-x86_64
+          path: dist
+
+      - name: Publish packages
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: end4-deps-${{ steps.release_meta.outputs.short_sha }}
+          name: end-4 Hyprland dependencies (${{ steps.release_meta.outputs.short_sha }})
+          body: |
+            Prebuilt x86_64 Arch Linux packages for the dependency set currently referenced by [end-4/dots-hyprland](https://github.com/end-4/dots-hyprland).
+
+            Upstream commit: `${{ steps.release_meta.outputs.upstream_commit }}`
+
+            Includes AUR packages built while resolving the selected local PKGBUILDs, the local Illogical Impulse metapackages, build metadata, and SHA256 checksums.
+
+            Install on Arch Linux with:
+
+            ```bash
+            sudo pacman -U ./*.pkg.tar.zst
+            ```
+
+            This release is a convenience build, not an official release from the upstream project.
+          files: |
+            dist/*.pkg.tar.zst
+            dist/BUILD_INFO
+            dist/SHA256SUMS
+          fail_on_unmatched_files: true
+          make_latest: false
+ dist/BUILD_INFO
+
+      - name: Generate SHA256 checksums
+        shell: bash
+        run: |
+          cd dist
+          find . -maxdepth 1 -type f -name '*.pkg.tar.zst' -printf '%f\n' \
+            | sort \
+            | xargs -r sha256sum > SHA256SUMS
+          test -s SHA256SUMS
+          echo "Packages built:"
+          ls -lh *.pkg.tar.zst
+
+      - name: Upload build output
+        uses: actions/upload-artifact@v4
+        with:
+          name: end4-hyprland-deps-x86_64
+          path: dist/
+          if-no-files-found: error
+          retention-days: 14
+
+  release:
+    name: Publish GitHub Release
+    needs: build
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Download build output
+        uses: actions/download-artifact@v4
+        with:
+          name: end4-hyprland-deps-x86_64
+          path: dist
+
+      - name: Publish packages
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: end4-deps-${{ steps.release_meta.outputs.short_sha }}
+          name: end-4 Hyprland dependencies (${{ steps.release_meta.outputs.short_sha }})
+          body: |
+            Prebuilt x86_64 Arch Linux packages for the dependency set currently referenced by [end-4/dots-hyprland](https://github.com/end-4/dots-hyprland).
+
+            Upstream commit: `${{ steps.release_meta.outputs.upstream_commit }}`
+
+            Includes AUR packages built while resolving the selected local PKGBUILDs, the local Illogical Impulse metapackages, build metadata, and SHA256 checksums.
+
+            Install on Arch Linux with:
+
+            ```bash
+            sudo pacman -U ./*.pkg.tar.zst
+            ```
+
+            This release is a convenience build, not an official release from the upstream project.
+          files: |
+            dist/*.pkg.tar.zst
+            dist/BUILD_INFO
+            dist/SHA256SUMS
+          fail_on_unmatched_files: true
+          make_latest: false
+ dist/BUILD_INFO
+
+      - name: Publish packages
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: end4-deps-${{ steps.release_meta.outputs.short_sha }}
+          name: end-4 Hyprland dependencies (${{ steps.release_meta.outputs.short_sha }})
+          body: |
+            Prebuilt x86_64 Arch Linux packages for the dependency set currently referenced by [end-4/dots-hyprland](https://github.com/end-4/dots-hyprland).
+
+            Upstream commit: `${{ steps.release_meta.outputs.upstream_commit }}`
+
+            Includes AUR packages built while resolving the selected local PKGBUILDs, the local Illogical Impulse metapackages, build metadata, and SHA256 checksums.
+
+            Install on Arch Linux with:
+
+            ```bash
+            sudo pacman -U ./*.pkg.tar.zst
+            ```
+
+            This release is a convenience build, not an official release from the upstream project.
+          files: |
+            dist/*.pkg.tar.zst
+            dist/BUILD_INFO
+            dist/SHA256SUMS
+          fail_on_unmatched_files: true
+          make_latest: false
+ dist/BUILD_INFO
+          grep -Eq '^short_sha=[0-9a-f]{12}
+      - name: Generate SHA256 checksums
+        shell: bash
+        run: |
+          cd dist
+          find . -maxdepth 1 -type f -name '*.pkg.tar.zst' -printf '%f\n' \
+            | sort \
+            | xargs -r sha256sum > SHA256SUMS
+          test -s SHA256SUMS
+          echo "Packages built:"
+          ls -lh *.pkg.tar.zst
+
+      - name: Upload build output
+        uses: actions/upload-artifact@v4
+        with:
+          name: end4-hyprland-deps-x86_64
+          path: dist/
+          if-no-files-found: error
+          retention-days: 14
+
+  release:
+    name: Publish GitHub Release
+    needs: build
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Download build output
+        uses: actions/download-artifact@v4
+        with:
+          name: end4-hyprland-deps-x86_64
+          path: dist
+
+      - name: Publish packages
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: end4-deps-${{ steps.release_meta.outputs.short_sha }}
+          name: end-4 Hyprland dependencies (${{ steps.release_meta.outputs.short_sha }})
+          body: |
+            Prebuilt x86_64 Arch Linux packages for the dependency set currently referenced by [end-4/dots-hyprland](https://github.com/end-4/dots-hyprland).
+
+            Upstream commit: `${{ steps.release_meta.outputs.upstream_commit }}`
+
+            Includes AUR packages built while resolving the selected local PKGBUILDs, the local Illogical Impulse metapackages, build metadata, and SHA256 checksums.
+
+            Install on Arch Linux with:
+
+            ```bash
+            sudo pacman -U ./*.pkg.tar.zst
+            ```
+
+            This release is a convenience build, not an official release from the upstream project.
+          files: |
+            dist/*.pkg.tar.zst
+            dist/BUILD_INFO
+            dist/SHA256SUMS
+          fail_on_unmatched_files: true
+          make_latest: false
+ dist/BUILD_INFO
+
+      - name: Generate SHA256 checksums
+        shell: bash
+        run: |
+          cd dist
+          find . -maxdepth 1 -type f -name '*.pkg.tar.zst' -printf '%f\n' \
+            | sort \
+            | xargs -r sha256sum > SHA256SUMS
+          test -s SHA256SUMS
+          echo "Packages built:"
+          ls -lh *.pkg.tar.zst
+
+      - name: Upload build output
+        uses: actions/upload-artifact@v4
+        with:
+          name: end4-hyprland-deps-x86_64
+          path: dist/
+          if-no-files-found: error
+          retention-days: 14
+
+  release:
+    name: Publish GitHub Release
+    needs: build
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Download build output
+        uses: actions/download-artifact@v4
+        with:
+          name: end4-hyprland-deps-x86_64
+          path: dist
+
+      - name: Publish packages
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: end4-deps-${{ steps.release_meta.outputs.short_sha }}
+          name: end-4 Hyprland dependencies (${{ steps.release_meta.outputs.short_sha }})
+          body: |
+            Prebuilt x86_64 Arch Linux packages for the dependency set currently referenced by [end-4/dots-hyprland](https://github.com/end-4/dots-hyprland).
+
+            Upstream commit: `${{ steps.release_meta.outputs.upstream_commit }}`
 
             Includes AUR packages built while resolving the selected local PKGBUILDs, the local Illogical Impulse metapackages, build metadata, and SHA256 checksums.
 
