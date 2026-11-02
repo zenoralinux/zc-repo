@@ -9,14 +9,13 @@ license=('GPL-3.0-only' 'OFL-1.1')
 depends=(
   'bash'
   'coreutils'
-  'curl'
   'fontconfig'
   'glib2'
-  'jq'
   'rsync'
   'sudo'
   'systemd'
   'uv'
+  'shadow'
   'illogical-impulse-audio'
   'illogical-impulse-backlight'
   'illogical-impulse-basic'
@@ -34,7 +33,7 @@ depends=(
 )
 makedepends=('git')
 optdepends=(
-  'kwrite: KDE configuration tools'
+  'kconfig: KDE configuration tools (kwriteconfig6)'
   'gsettings-desktop-schemas: GNOME interface settings schema'
 )
 install="$pkgname.install"
